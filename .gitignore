@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Scratch output from `make preview`.
+portrait-preview.png
+.DS_Store
+
+# dist/ is intentionally NOT ignored -- GitHub serves the card SVGs straight
+# from the committed files, so they have to be in the repository.
+
+.pytest_cache/
+
+# Scratch output from `make preview`.
+portrait-preview.png
+
+# Personal source images you may not want in a public repo.
+# The portrait this builds from (assets/logo.png) is committed; photos are not.
+assets/photo.*
+assets/beach.*

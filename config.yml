@@ -1,0 +1,204 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  Everything on the card is declared here.  Nothing is hardcoded in the SVGs --
+#  they are generated from this file, so add a line, delete a line, or reorder
+#  the list and the layout reflows on its own.
+#
+#  Regenerate after editing:   make build      (or: python -m profilecard --offline)
+#  Full reference:             docs/CUSTOMIZING.md
+# ══════════════════════════════════════════════════════════════════════════════
+
+github:
+  username: the-scott-davis
+
+  # Which repositories count toward the lines-of-code and contribution stats.
+  affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+  # Which repositories count toward the star total.
+  star_affiliations: [OWNER]
+  # Skip these entirely, e.g. a vendored fork that would skew the numbers.
+  exclude_repos: []
+  # Count only commits authored by you, rather than every commit in the repo.
+  only_my_commits: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Free-form values you can reference from any field below as {name}.
+#  Add your own keys here -- they become placeholders automatically.
+# ──────────────────────────────────────────────────────────────────────────────
+vars:
+  name: Scott Davis
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  What you build with.
+#
+#  GitHub's language statistics measure BYTES and have no sense of time, so one
+#  large old service outranks every recent project. `since_years` fixes that.
+#  They also cannot see a framework, a cloud, or a database -- Next.js, Vercel
+#  and Postgres all just read as "TypeScript" -- so the technology list is
+#  detected from dependency manifests and marker files instead, and ranked by
+#  how many repositories use each one.
+# ──────────────────────────────────────────────────────────────────────────────
+stack:
+  since_years: 1          # only repos pushed this recently; 0 or null for all time
+  exclude_languages:
+    - HTML                # markup inflates badly against real code
+    - CSS
+    - SCSS
+    - Less
+    - Dockerfile
+    - Shell
+    - "C#"                # must be quoted -- a bare # starts a YAML comment
+    - TSQL
+    - PHP
+    - Lua
+    - HCL
+    - PowerShell
+  exclude_tech: []
+  limit: 8
+  sample_repos: 6         # repos to sample commit times from; 0 disables the hour stat
+  # Commit timestamps arrive in UTC. A named zone handles daylight saving across
+  # a whole year of commits; the offset is only a fallback for Python < 3.9.
+  timezone: America/Chicago
+  timezone_offset: -5
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  Source art -> portrait.  `make portrait` re-runs this; every value maps to a
+#  flag on `python -m profilecard.portrait --help`, so you can dial it in
+#  interactively and then write the numbers you liked back here.
+#
+#  mode: ascii  -> a block of monospace characters (what is shipped)
+#  mode: pixel  -> a small colour PNG, drawn on the card as solid rectangles
+#
+#  Which mode suits your art depends entirely on its LUMINANCE contrast, because
+#  characters have no colour to work with.  Flat, evenly-lit photographs turn to
+#  mush in ascii no matter how many columns you give them.  Logos and other
+#  high-contrast silhouettes are the ideal case -- this one separates by roughly
+#  215 levels out of 255, so a near-binary ramp renders it crisply.
+#  To use a photograph instead, switch to `mode: pixel`; see docs/CUSTOMIZING.md.
+# ──────────────────────────────────────────────────────────────────────────────
+portrait:
+  source: assets/logo.png
+  mode: ascii
+  width: 80                        # target columns before trimming
+  crop: [0.145, 0.081, 0.867, 0.957]  # left, top, right, bottom as 0..1 fractions
+  cell_aspect: 0.545               # portrait_char_width / portrait_line_height, below
+  ramp: silhouette                 # " .:-+*#%@"
+  sharpen: 1.2                     # recovers frond edges lost to downsampling
+  # A narrow black/white window is a soft threshold: the disc goes solid, the
+  # background goes empty, and only the anti-aliased edges land in between.
+  black_point: 0.40
+  white_point: 0.60
+  outputs:
+    main:
+      path: assets/portrait.txt
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  The card itself.
+#
+#  Placeholders:  {name} and anything else under `vars:`, plus
+#    {username} {age} {commits} {stars} {repos} {contributed} {followers}
+#    {loc} {loc_added} {loc_deleted}   -- all pre-formatted with thousands separators.
+#  Inline colour:  <key>..</key>  <value>..</value>  <dim>..</dim>
+#                  <add>..</add>  <del>..</del>      (colours come from the theme)
+#  Literal braces: {{ and }}
+#  A dot in a label renders as a nested key, e.g. Languages.Programming
+# ──────────────────────────────────────────────────────────────────────────────
+card:
+  title: "{name} <dim>@</dim> {username}"
+  font_size: 16
+  line_height: 20
+  padding: 18
+  corner_radius: 14
+  gutter: 4              # blank columns between the portrait and the field list
+  # The portrait is texture, not text, so it is set smaller than the field list.
+  # That is what buys the column count an ascii portrait needs to hold detail.
+  portrait_font_size: 10
+  portrait_line_height: 11
+  portrait_char_width: 6.0
+  pixel_size: 6          # only used by `mode: pixel`
+  portrait_radius: 6     # rounded corners, only used by `mode: pixel`
+
+  fields:
+    - label: GitHub age
+      value: "{github_age}"
+
+    - separator: true
+
+    # Detected from dependency manifests, not self-reported.
+    - label: Stack.Building with
+      value: "{tech_6}"
+    - label: Stack.Primary
+      value: "{language_top} <dim>—</dim> {language_top_pct}% of recent code"
+    - label: Stack.Also
+      value: "{languages_list}"
+
+    - separator: true
+
+    - label: Commits.{year}
+      value: "{commits_ytd} <dim>so far</dim>"
+    - label: Commits.{prev_year}
+      value: "{commits_prev_year}"
+    - label: Commits.All time
+      value: "{commits}"
+    - label: Commits.Per day
+      value: "{per_day}"
+    - label: Commits.Active days
+      value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
+    - label: Commits.Streak
+      value: "{current_streak} days <dim>·</dim> best {longest_streak}"
+    - label: Commits.Record
+      value: "{busiest_count} in one day <dim>({busiest_date})</dim>"
+    - label: Commits.Busiest day
+      value: "{busiest_weekday}s"
+    - label: Commits.Peak hours
+      value: "{busiest_window}"
+    - label: Commits.Weekends
+      value: "{weekend_pct}% of all commits"
+
+    - separator: true
+
+    - label: Shipped.Pull requests
+      value: "{prs_merged} merged <dim>·</dim> {prs_open} open"
+    - label: Shipped.Issues
+      value: "{issues_opened} opened"
+    - label: Shipped.Repositories
+      value: "{repos} owned <dim>·</dim> {contributed} contributed to"
+    - label: Shipped.Followers
+      value: "{followers}"
+
+    - separator: true
+
+    - label: Contact.Email
+      value: scott@thirtyeightysix.com
+    - label: Contact.Discord
+      value: "yourhandle"
+      enabled: false
+    - label: Contact.LinkedIn
+      value: linkedin.com/in/scott-davis-fl
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  One SVG is written per theme.  Add a third if you want one; the README's
+#  <picture> element only switches between two, but nothing stops you.
+# ──────────────────────────────────────────────────────────────────────────────
+themes:
+  dark:
+    output: dist/dark_mode.svg
+    portrait: assets/portrait.txt
+    bg: "#161b22"
+    fg: "#c9d1d9"
+    key: "#ffa657"
+    value: "#a5d6ff"
+    dim: "#6e7681"
+    add: "#3fb950"
+    delete: "#f85149"
+    rule: "#30363d"
+
+  light:
+    output: dist/light_mode.svg
+    portrait: assets/portrait.txt
+    bg: "#ffffff"
+    fg: "#24292f"
+    key: "#953800"
+    value: "#0550ae"
+    dim: "#6e7781"
+    add: "#1a7f37"
+    delete: "#cf222e"
+    rule: "#d0d7de"
