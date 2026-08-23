@@ -20,7 +20,7 @@ venv: ## Create the virtualenv the nightly job runs from
 	@.venv/bin/python -c "import ssl" || { echo "this python cannot do HTTPS"; exit 1; }
 	@echo "venv ready: $$(.venv/bin/python -V)"
 
-nightly: ## Run the nightly rebuild by hand (same script pm2 runs)
+nightly: ## Run the scheduled rebuild by hand
 	./scripts/nightly.sh
 
 portrait: ## Regenerate the portrait from the source photo

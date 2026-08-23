@@ -45,7 +45,6 @@ self-contained SVG with no linked or embedded image.
 | `profilecard/render.py` | Computes layout and emits the SVG |
 | `profilecard/__main__.py` | CLI entry point (`python -m profilecard`) |
 | `scripts/nightly.sh` | The scheduled rebuild. Reads the token from the keyring at use |
-| `ecosystem.config.js` | pm2 definition for the above |
 | `dist/` | Generated. Committed. Never hand-edit |
 | `cache/loc.json` | Generated. Committed. Safe to delete; it rebuilds |
 

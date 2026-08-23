@@ -38,65 +38,31 @@ longer installed, which breaks HTTPS entirely — the failure looks like a netwo
 problem and is not one. The `venv` target checks for this and refuses to produce
 a broken environment.
 
-## Scheduling with pm2
+## Scheduling it
 
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup                     # prints a command to run once, to survive reboots
+The script is a self-contained one-shot: it takes no arguments, resolves its own
+location, exits non-zero on failure, and is safe to run at any time. Point
+whatever scheduler you already use at it.
+
+```
+/ABSOLUTE/PATH/TO/REPO/scripts/nightly.sh
 ```
 
-Check on it:
+Run `pwd` in the repository to get that path. Use an absolute one — schedulers
+generally do not expand `~`, and rarely inherit your interactive shell's `PATH`.
 
-```bash
-pm2 logs profile-card
-pm2 describe profile-card
-```
+Any of cron, launchd, pm2, systemd timers, or a scheduler you already run will
+do. Two things are worth checking whichever you pick:
 
-This is a one-shot script rather than a service, so `autorestart` is off and
-`cron_restart` does the scheduling. Each run starts, works, and exits.
+- **Sleep behaviour.** A plain cron schedule only fires while the machine is
+  awake, so a desktop that sleeps at midnight simply skips that night. On macOS,
+  launchd runs a missed job on wake, which is the better fit for anything that
+  sleeps.
+- **`PATH`.** The script needs `git` and `gh` on it. If your scheduler starts
+  with a minimal environment, set `PATH` explicitly in the job definition.
 
-## Scheduling with launchd instead
-
-pm2's cron only fires while the machine is awake. If this Mac sleeps at
-midnight, that night is simply skipped. launchd is the native macOS scheduler and
-**runs a missed job on wake**, which makes it the better choice for anything that
-sleeps.
-
-Save as `~/Library/LaunchAgents/com.example.profilecard.plist`. Replace
-`/ABSOLUTE/PATH/TO/REPO` throughout with wherever you cloned this — launchd
-requires absolute paths and will not expand `~`. Run `pwd` in the repository to
-get it:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.example.profilecard</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/ABSOLUTE/PATH/TO/REPO/scripts/nightly.sh</string>
-  </array>
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key><integer>0</integer>
-    <key>Minute</key><integer>0</integer>
-  </dict>
-  <key>StandardOutPath</key>
-  <string>/ABSOLUTE/PATH/TO/REPO/logs/nightly.log</string>
-  <key>StandardErrorPath</key>
-  <string>/ABSOLUTE/PATH/TO/REPO/logs/nightly.error.log</string>
-</dict>
-</plist>
-```
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.example.profilecard.plist
-launchctl start com.example.profilecard     # test it immediately
-```
+Missing a night is harmless. The card on GitHub simply stays as it was until the
+next successful run.
 
 ## What the script does
 

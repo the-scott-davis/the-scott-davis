@@ -52,7 +52,7 @@ make install
 4. **Preview without a token:** `make build`. This renders from cached numbers,
    so you can iterate on layout offline.
 5. **Schedule it.** `make venv`, then `./scripts/nightly.sh` to prove it works,
-   then point pm2 or launchd at that script — see
+   then point your scheduler of choice at that script — see
    [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
    The card is rebuilt on your own machine rather than in CI, so there is no
