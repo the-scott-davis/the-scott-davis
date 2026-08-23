@@ -50,8 +50,10 @@ if git diff --quiet -- dist cache; then
 fi
 
 git add dist cache
+# GitHub's noreply address, so a real email is not stamped into every commit
+# this job makes. Change it if you fork; yours is on github.com/settings/emails.
 git -c user.name="Scott Davis" \
-    -c user.email="scott@thirtyeightysix.com" \
+    -c user.email="355212+the-scott-davis@users.noreply.github.com" \
     commit --quiet -m "chore: rebuild profile card ($(date '+%Y-%m-%d'))"
 
 if git push --quiet origin "$BRANCH"; then

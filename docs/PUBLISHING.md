@@ -63,8 +63,10 @@ midnight, that night is simply skipped. launchd is the native macOS scheduler an
 **runs a missed job on wake**, which makes it the better choice for anything that
 sleeps.
 
-Save as `~/Library/LaunchAgents/com.thirtyeightysix.profilecard.plist`, replacing
-the path if the repository lives elsewhere:
+Save as `~/Library/LaunchAgents/com.example.profilecard.plist`. Replace
+`/ABSOLUTE/PATH/TO/REPO` throughout with wherever you cloned this — launchd
+requires absolute paths and will not expand `~`. Run `pwd` in the repository to
+get it:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -73,10 +75,10 @@ the path if the repository lives elsewhere:
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.thirtyeightysix.profilecard</string>
+  <string>com.example.profilecard</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/sdavis/the-scott-davis/scripts/nightly.sh</string>
+    <string>/ABSOLUTE/PATH/TO/REPO/scripts/nightly.sh</string>
   </array>
   <key>StartCalendarInterval</key>
   <dict>
@@ -84,16 +86,16 @@ the path if the repository lives elsewhere:
     <key>Minute</key><integer>0</integer>
   </dict>
   <key>StandardOutPath</key>
-  <string>/Users/sdavis/the-scott-davis/logs/nightly.log</string>
+  <string>/ABSOLUTE/PATH/TO/REPO/logs/nightly.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/sdavis/the-scott-davis/logs/nightly.error.log</string>
+  <string>/ABSOLUTE/PATH/TO/REPO/logs/nightly.error.log</string>
 </dict>
 </plist>
 ```
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.thirtyeightysix.profilecard.plist
-launchctl start com.thirtyeightysix.profilecard     # test it immediately
+launchctl load ~/Library/LaunchAgents/com.example.profilecard.plist
+launchctl start com.example.profilecard     # test it immediately
 ```
 
 ## What the script does

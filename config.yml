@@ -166,11 +166,8 @@ card:
 
     - separator: true
 
-    - label: Contact.Email
-      value: scott@thirtyeightysix.com
-    - label: Contact.Discord
-      value: "yourhandle"
-      enabled: false
+    # Deliberately no email. A published address on a high-traffic profile is a
+    # scraping target, and LinkedIn already provides a route to make contact.
     - label: Contact.LinkedIn
       value: linkedin.com/in/scott-davis-fl
 
