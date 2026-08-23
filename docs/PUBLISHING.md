@@ -1,0 +1,121 @@
+# Publishing and scheduling
+
+The card is rebuilt **on the owner's machine**, not by GitHub Actions, and then
+pushed like any other commit.
+
+That is a deliberate security choice rather than a convenience one. Building in
+CI would mean creating a personal access token with `repo` scope — read and
+write access to every repository you own — and handing a copy to GitHub to store
+as a secret. It would sit there indefinitely, and rotating it would mean
+remembering it exists.
+
+Building locally needs none of that. The `gh` CLI you are already signed in to
+holds a token in the macOS keyring, and `scripts/nightly.sh` reads it at the
+moment of use:
+
+```bash
+GITHUB_TOKEN="$(gh auth token)" "$PYTHON" -m profilecard
+```
+
+It exists in one process's environment for a few seconds. Nothing is written to
+disk, committed, or stored by GitHub. Rotating it is `gh auth refresh` — there
+is no second credential to remember.
+
+The consequence of this choice is that **no workflow in this repository handles a
+secret**, and none can be triggered by anyone without write access. The only
+workflow left runs the tests.
+
+## One-time setup
+
+```bash
+make venv                       # virtualenv for the scheduled job
+./scripts/nightly.sh            # prove it works before scheduling it
+```
+
+`make venv` builds from `python3.11` rather than whatever `python3` points at.
+Pyenv-managed interpreters are frequently linked against an OpenSSL that is no
+longer installed, which breaks HTTPS entirely — the failure looks like a network
+problem and is not one. The `venv` target checks for this and refuses to produce
+a broken environment.
+
+## Scheduling with pm2
+
+```bash
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup                     # prints a command to run once, to survive reboots
+```
+
+Check on it:
+
+```bash
+pm2 logs profile-card
+pm2 describe profile-card
+```
+
+This is a one-shot script rather than a service, so `autorestart` is off and
+`cron_restart` does the scheduling. Each run starts, works, and exits.
+
+## Scheduling with launchd instead
+
+pm2's cron only fires while the machine is awake. If this Mac sleeps at
+midnight, that night is simply skipped. launchd is the native macOS scheduler and
+**runs a missed job on wake**, which makes it the better choice for anything that
+sleeps.
+
+Save as `~/Library/LaunchAgents/com.thirtyeightysix.profilecard.plist`, replacing
+the path if the repository lives elsewhere:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.thirtyeightysix.profilecard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/sdavis/the-scott-davis/scripts/nightly.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>0</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/sdavis/the-scott-davis/logs/nightly.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/sdavis/the-scott-davis/logs/nightly.error.log</string>
+</dict>
+</plist>
+```
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.thirtyeightysix.profilecard.plist
+launchctl start com.thirtyeightysix.profilecard     # test it immediately
+```
+
+## What the script does
+
+1. Refuses to run if the working tree has uncommitted changes outside `dist/`,
+   so a scheduled job can never bury work in progress.
+2. Fast-forwards from `origin/main`.
+3. Reads the token from the keyring, fetches stats, renders both SVGs.
+4. Commits and pushes **only if the card actually changed**.
+
+Any failure leaves the committed card untouched. A stale card is a much better
+outcome than a wrong one, so nothing is published unless the whole run succeeded.
+
+## If it stops working
+
+```bash
+./scripts/nightly.sh            # run it by hand; the error will say what broke
+```
+
+| Symptom | Cause |
+|---|---|
+| `gh is not signed in` | `gh auth login` |
+| `no virtualenv` | `make venv` |
+| Card shows 2 commits instead of thousands | The `gh` token lost `repo` scope. `gh auth refresh -s repo` |
+| `working tree has uncommitted changes` | Commit or stash them; the guard is doing its job |

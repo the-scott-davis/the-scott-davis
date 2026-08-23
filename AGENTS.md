@@ -44,6 +44,8 @@ self-contained SVG with no linked or embedded image.
 | `profilecard/stats.py` | Orchestrates collection; builds the placeholder dict |
 | `profilecard/render.py` | Computes layout and emits the SVG |
 | `profilecard/__main__.py` | CLI entry point (`python -m profilecard`) |
+| `scripts/nightly.sh` | The scheduled rebuild. Reads the token from the keyring at use |
+| `ecosystem.config.js` | pm2 definition for the above |
 | `dist/` | Generated. Committed. Never hand-edit |
 | `cache/loc.json` | Generated. Committed. Safe to delete; it rebuilds |
 
@@ -129,6 +131,23 @@ self-contained SVG with no linked or embedded image.
 and `docs/PORTRAIT-PHOTOS.md` covers shooting a photo that survives ASCII. Send
 people to the last one rather than re-deriving the advice — it is grounded in
 measurements taken from real failures, not general photography lore.
+
+## Security posture
+
+The card is built on the owner's machine and pushed, not built in CI. That is
+why no workflow here handles a secret, and why none has a `pull_request`
+trigger: in a public repository that would let a stranger run CI on their own
+code. Nothing could be read or written even so, but the property worth keeping
+is simpler than the argument for why it would be safe.
+
+If you are tempted to move the build into Actions, understand what it costs: a
+classic PAT with `repo` scope — read and write to every repository the owner
+has — stored indefinitely as a repository secret. The current design needs no
+stored credential at all. Do not trade that away for a green checkmark.
+
+Never commit `cache/loc.json` with plaintext repository names; keys are hashed
+because this repository is public and the accounts this project suits are the
+ones whose repository names are not.
 
 ## Verifying a change
 

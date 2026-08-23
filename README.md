@@ -51,14 +51,15 @@ make install
    list to say whatever you want it to say.
 4. **Preview without a token:** `make build`. This renders from cached numbers,
    so you can iterate on layout offline.
-5. **Add a token and go live.** Create a **classic** personal access token with
-   the `repo` scope, save it as a repository secret named `ACCESS_TOKEN`, then
-   run the **Build profile card** workflow. It re-runs daily.
+5. **Schedule it.** `make venv`, then `./scripts/nightly.sh` to prove it works,
+   then point pm2 or launchd at that script — see
+   [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
-   The `repo` scope matters: commit counts come from GitHub's contributions API,
-   and the private-contribution portion reads 0 without it. A fine-grained token
-   limited to Contents+Metadata will silently undercount anyone whose work is
-   mostly in private repositories.
+   The card is rebuilt on your own machine rather than in CI, so there is no
+   personal access token to create and no secret for GitHub to hold. The `gh`
+   CLI you are already signed in to supplies a token from the system keyring at
+   the moment of use. Consequently no workflow in this repository touches a
+   secret, and none can be triggered by anyone without write access.
 
 ### Commands
 
@@ -68,6 +69,8 @@ make install
 | `make preview` | Render the portrait to a scratch file, write nothing committed |
 | `make build` | Render the cards from cached stats — no token needed |
 | `make fetch` | Fetch fresh stats from GitHub and render |
+| `make venv` | Build the virtualenv the scheduled job runs from |
+| `make nightly` | Run the scheduled rebuild by hand |
 | `make check` | Validate `config.yml` |
 | `make test` | Run the tests |
 

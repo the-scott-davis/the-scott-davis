@@ -7,11 +7,16 @@ on:
       - "dist/**"      # the nightly build commits here; nothing to re-test
       - "cache/**"
       - "**.md"
-  pull_request:
   workflow_dispatch:
 
-# No secrets are used by this workflow, and it needs nothing but read access.
-# That is deliberate: it is the only workflow a fork can trigger.
+# There is deliberately no `pull_request` trigger. A public repository with one
+# lets any stranger cause CI to run on their own code. Nothing could be read or
+# written -- secrets are never exposed to forks, and this job declares no
+# secrets and read-only access -- but the cleanest answer to "can an outsider
+# make anything happen here" is that no workflow in this repository can be
+# triggered by anyone without write access.
+#
+# The card itself is built on the owner's machine, not here. See scripts/nightly.sh.
 permissions:
   contents: read
 
