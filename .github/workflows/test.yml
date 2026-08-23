@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "dist/**"      # the nightly build commits here; nothing to re-test
+      - "cache/**"
+      - "**.md"
+  pull_request:
+  workflow_dispatch:
+
+# No secrets are used by this workflow, and it needs nothing but read access.
+# That is deliberate: it is the only workflow a fork can trigger.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the floor (union type syntax); 3.13 guards against drift.
+        python-version: ["3.10", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+
+      - name: Validate config
+        run: python -m profilecard --check
+
+      - name: Run tests
+        # Ignore globally-installed plugins so the run depends only on
+        # requirements.txt rather than whatever else is in site-packages.
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: python -m pytest -q
+
+      - name: Verify the card renders without a token
+        # The path a forker takes before they have a token, and the one most
+        # likely to rot: it exercises every placeholder against an empty cache.
+        run: python -m profilecard --offline
+
+      - name: Verify the committed portrait matches the source art
+        # Unlike the SVGs, this is deterministic -- no live stats involved -- so
+        # it can be checked. Catches a portrait config change nobody rebuilt.
+        run: |
+          python -m profilecard.portrait
+          if ! git diff --quiet -- assets; then
+            echo "::error::assets/portrait.* is stale. Run 'make portrait' and commit."
+            git diff --stat -- assets
+            exit 1
+          fi

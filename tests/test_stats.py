@@ -82,3 +82,42 @@ class TestTopLanguages:
 class TestStatsDefaults:
     def test_loc_is_added_minus_deleted(self):
         assert Stats(username="x", loc_added=500, loc_deleted=200).loc == 300
+
+
+class TestOfflineRendering:
+    """`--offline` is the path a forker takes before they have a token.
+
+    It renders from an empty cache, so every placeholder the shipped config
+    references must still resolve. This regressed once: {github_age} was only
+    populated during a live fetch, which made `make build` fail outright.
+    """
+
+    def test_every_placeholder_resolves_with_no_stats_at_all(self):
+        from profilecard.config import Config
+        from profilecard.render import build_lines
+        from profilecard.stats import to_values
+
+        cfg = Config.load("config.yml")
+        values = to_values(cfg, Stats(username="nobody"))
+        # Raises ConfigError naming the offending key if anything is missing.
+        build_lines(cfg.card, values)
+
+    def test_shipped_config_renders_end_to_end_offline(self, tmp_path):
+        from profilecard.config import Config
+        from profilecard.render import render_theme
+        from profilecard.stats import offline_stats, to_values
+
+        cfg = Config.load("config.yml")
+        stats = offline_stats(cfg)
+        for theme in cfg.themes:
+            svg = render_theme(cfg, theme, to_values(cfg, stats))
+            assert svg.startswith("<?xml")
+            assert "{" not in svg.split("<style>")[0]  # no unexpanded placeholders
+
+    def test_unknown_figures_render_as_a_dash_not_an_empty_gap(self):
+        from profilecard.config import Config
+        from profilecard.stats import to_values
+
+        values = to_values(Config.load("config.yml"), Stats(username="nobody"))
+        for key in ("github_age", "busiest_weekday", "tech_6", "language_top"):
+            assert values[key] == "—", f"{key} should be visibly unknown, not blank"

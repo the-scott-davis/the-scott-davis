@@ -10,7 +10,7 @@ Run it with ``python -m profilecard.portrait`` (see ``--help``) or call
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageFilter, ImageOps

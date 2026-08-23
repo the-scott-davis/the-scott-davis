@@ -174,9 +174,43 @@ def offline_stats(cfg: Config) -> Stats:
     return stats
 
 
+# Every placeholder the card can reference, with the value used when the figure
+# behind it is unknown.  Defined up front and unconditionally, so that a config
+# valid against a live fetch is also valid offline: `--offline` renders from an
+# empty cache, and a field referencing {github_age} must not fail the build just
+# because nobody supplied a token.
+UNKNOWN = "—"
+OPTIONAL_DEFAULTS = {
+    "age": UNKNOWN,
+    "birthday": UNKNOWN,
+    "github_age": UNKNOWN,
+    "github_since": UNKNOWN,
+    "busiest_date": UNKNOWN,
+    "busiest_weekday": UNKNOWN,
+    "quietest_weekday": UNKNOWN,
+    "busiest_weekday_count": "0",
+    "weekend_pct": "0",
+    "busiest_hour": UNKNOWN,
+    "busiest_hour_pct": "0",
+    "busiest_window": UNKNOWN,
+    "language_top": UNKNOWN,
+    "language_top_pct": "0",
+    "languages": UNKNOWN,
+    "languages_list": UNKNOWN,
+    "languages_all": UNKNOWN,
+    "tech": UNKNOWN,
+    "tech_top": UNKNOWN,
+    "tech_3": UNKNOWN,
+    "tech_4": UNKNOWN,
+    "tech_5": UNKNOWN,
+    "tech_6": UNKNOWN,
+}
+
+
 def to_values(cfg: Config, stats: Stats, github_name: str | None = None) -> dict[str, str]:
     """Everything a config field can reference as ``{placeholder}``."""
-    values: dict[str, str] = {k: str(v) for k, v in cfg.vars.items()}
+    values: dict[str, str] = dict(OPTIONAL_DEFAULTS)
+    values.update({k: str(v) for k, v in cfg.vars.items()})
 
     birthday = _coerce_date(cfg.vars.get("birthday"))
     if birthday:
@@ -208,19 +242,21 @@ def to_values(cfg: Config, stats: Stats, github_name: str | None = None) -> dict
     values["github_since"] = stats.github_since
 
     langs = stats.languages or []
-    values["languages"] = ", ".join(f"{n} {p:.0f}%" for n, p in langs[:4])
+    if langs:
+        values["languages"] = ", ".join(f"{n} {p:.0f}%" for n, p in langs[:4])
     # Skips the leader, so a card can show "Primary: X" and "Also: ..." without
     # naming X twice.
-    values["languages_list"] = ", ".join(n for n, _ in langs[1:7])
-    values["languages_all"] = ", ".join(n for n, _ in langs)
-    values["language_top"] = langs[0][0] if langs else ""
-    values["language_top_pct"] = f"{langs[0][1]:.0f}" if langs else "0"
+        values["languages_list"] = ", ".join(n for n, _ in langs[1:7]) or UNKNOWN
+        values["languages_all"] = ", ".join(n for n, _ in langs)
+        values["language_top"] = langs[0][0]
+        values["language_top_pct"] = f"{langs[0][1]:.0f}"
 
     tech = stats.tech or []
-    values["tech"] = ", ".join(n for n, _ in tech)
-    values["tech_top"] = tech[0][0] if tech else ""
-    for n in (3, 4, 5, 6):
-        values[f"tech_{n}"] = ", ".join(name for name, _ in tech[:n])
+    if tech:
+        values["tech"] = ", ".join(n for n, _ in tech)
+        values["tech_top"] = tech[0][0]
+        for n in (3, 4, 5, 6):
+            values[f"tech_{n}"] = ", ".join(name for name, _ in tech[:n])
     values["recent_repos"] = f"{stats.recent_repos:,}"
 
     if stats.github_created:
