@@ -1,8 +1,17 @@
 # Everything you need day to day. `make help` lists it.
 .DEFAULT_GOAL := help
 PY ?= python3
-# The nightly job needs an interpreter with working SSL; pyenv builds often lack it.
-VENV_PY ?= /usr/local/bin/python3.11
+
+# The nightly job needs a 3.10+ interpreter that can actually do HTTPS. Pyenv
+# builds are frequently linked against an OpenSSL that is no longer installed,
+# which breaks TLS entirely and presents as a network error. So rather than
+# trusting whatever `python3` resolves to, probe candidates and pick the first
+# that imports ssl. Override with `make venv VENV_PY=/path/to/python`.
+VENV_PY ?= $(shell for p in python3.13 python3.12 python3.11 python3.10 python3; do \
+	command -v $$p >/dev/null 2>&1 || continue; \
+	$$p -c 'import ssl,sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' >/dev/null 2>&1 \
+	  && { command -v $$p; break; }; \
+	done)
 
 .PHONY: help install venv nightly portrait preview analyze build fetch check test clean
 
@@ -13,7 +22,11 @@ install: ## Install Python dependencies
 	$(PY) -m pip install -r requirements.txt
 
 venv: ## Create the virtualenv the nightly job runs from
-	@command -v $(VENV_PY) >/dev/null || { echo "need $(VENV_PY) -- brew install python@3.11"; exit 1; }
+	@test -n "$(VENV_PY)" || { \
+	  echo "No Python 3.10+ with working SSL found."; \
+	  echo "Install one (macOS: brew install python@3.12, Debian: apt install python3.12-venv)"; \
+	  echo "or point at it: make venv VENV_PY=/path/to/python3"; exit 1; }
+	@echo "using $(VENV_PY) ($$($(VENV_PY) -V))"
 	$(VENV_PY) -m venv .venv
 	.venv/bin/pip install --quiet --upgrade pip
 	.venv/bin/pip install --quiet -r requirements.txt
