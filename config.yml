@@ -45,6 +45,7 @@ stack:
     - Less
     - Dockerfile
     - Shell
+    - Makefile            # build plumbing, not something anyone writes in
     - "C#"                # must be quoted -- a bare # starts a YAML comment
     - TSQL
     - PHP
