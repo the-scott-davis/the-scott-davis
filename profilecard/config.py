@@ -139,6 +139,9 @@ class Field:
     label: str | None = None
     value: str = ""
     separator: bool = False
+    # Forces the next field into the following column. Ignored in one-column
+    # layouts, so leaving one in place costs nothing when the portrait is back on.
+    column_break: bool = False
     enabled: bool = True
 
     @property
@@ -154,8 +157,12 @@ class Field:
         data = _as_dict(data, where)
         if data.get("separator"):
             return cls(separator=True, enabled=bool(data.get("enabled", True)))
+        if data.get("column_break"):
+            return cls(column_break=True, enabled=bool(data.get("enabled", True)))
         if "label" not in data:
-            raise ConfigError(f"{where}: needs either 'label' or 'separator: true'")
+            raise ConfigError(
+                f"{where}: needs one of 'label', 'separator: true', 'column_break: true'"
+            )
         return cls(
             label=str(data["label"]),
             value="" if data.get("value") is None else str(data["value"]),
@@ -167,6 +174,9 @@ class Field:
 class Theme:
     name: str
     output: str
+    # Empty when the theme draws no portrait. Only `card.show_portrait: true`
+    # makes it mandatory, and render.py is where that is enforced -- a theme
+    # cannot see the card config from here.
     portrait: str
     bg: str
     fg: str
@@ -186,7 +196,7 @@ class Theme:
         return cls(
             name=name,
             output=str(_require(data, "output", where)),
-            portrait=str(_require(data, "portrait", where)),
+            portrait=str(data.get("portrait") or ""),
             bg=str(_require(data, "bg", where)),
             fg=fg,
             key=str(data.get("key", fg)),
@@ -207,7 +217,13 @@ class CardConfig:
     padding: int = 18
     corner_radius: int = 14
     gutter: int = 4  # blank columns between the portrait and the field list
+    column_gutter: int = 4  # blank columns between two field columns
     min_dots: int = 2
+    # The portrait is optional. Turning it off frees the whole width for text,
+    # which is why `columns` then defaults to 2 -- a single tall column of rows
+    # against a wide README is mostly empty space.
+    show_portrait: bool = True
+    columns: int | None = None  # None -> 1 with a portrait, 2 without
     pixel_size: int = 7  # SVG pixels per art pixel, for a pixel-art portrait
     portrait_radius: int = 6  # rounded corners on a pixel-art portrait
     # An ASCII portrait is texture, not text, so it does not have to be set at a
@@ -216,6 +232,10 @@ class CardConfig:
     portrait_font_size: int | None = None
     portrait_line_height: int | None = None
     portrait_char_width: float | None = None
+
+    @property
+    def column_count(self) -> int:
+        return self.columns if self.columns is not None else (1 if self.show_portrait else 2)
 
     @property
     def art_font_size(self) -> int:
@@ -247,6 +267,9 @@ class CardConfig:
         if not isinstance(raw_fields, list):
             raise ConfigError("card.fields: expected a list")
         fields = [Field.parse(item, i) for i, item in enumerate(raw_fields)]
+        columns = _opt_int(data.get("columns"))
+        if columns is not None and columns < 1:
+            raise ConfigError(f"card.columns: expected 1 or more, got {columns}")
         return cls(
             title=str(data.get("title", cls.title)),
             font_size=int(data.get("font_size", cls.font_size)),
@@ -255,7 +278,10 @@ class CardConfig:
             padding=int(data.get("padding", cls.padding)),
             corner_radius=int(data.get("corner_radius", cls.corner_radius)),
             gutter=int(data.get("gutter", cls.gutter)),
+            column_gutter=int(data.get("column_gutter", cls.column_gutter)),
             min_dots=int(data.get("min_dots", cls.min_dots)),
+            show_portrait=bool(data.get("show_portrait", cls.show_portrait)),
+            columns=columns,
             pixel_size=int(data.get("pixel_size", cls.pixel_size)),
             portrait_radius=int(data.get("portrait_radius", cls.portrait_radius)),
             portrait_font_size=_opt_int(data.get("portrait_font_size")),

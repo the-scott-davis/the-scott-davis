@@ -44,6 +44,15 @@ A blank spacer line:
     - separator: true
 ```
 
+And, in a two-column card, an explicit place for the second column to start:
+
+```yaml
+    - column_break: true
+```
+
+See [Turning the portrait off](#turning-the-portrait-off) — in a one-column card
+it does nothing at all.
+
 ### Placeholders
 
 Any `{name}` in a `value` (or in `card.title`, or in a label) is substituted.
@@ -175,9 +184,57 @@ themes:
     rule: "#30363d"    # the line under the title
 ```
 
-Only `output`, `portrait`, `bg`, and `fg` are required; the rest fall back to
-`fg`. Add a third theme if you want one — nothing stops you, though the README
-only references two.
+Only `output`, `bg`, and `fg` are required; the rest fall back to `fg`.
+`portrait` joins them whenever `card.show_portrait` is on, which it is by
+default. Add a third theme if you want one — nothing stops you, though the
+README only references two.
+
+---
+
+## Turning the portrait off
+
+If the art is already your GitHub avatar, the profile page shows it twice, side
+by side. One line fixes that:
+
+```yaml
+card:
+  show_portrait: false
+```
+
+The whole card width then goes to the rows, so the layout switches to two
+columns — a single tall column of nineteen rows against a full-width README is
+mostly empty space. Override the count if you want something else:
+
+```yaml
+card:
+  columns: 2           # default: 1 with a portrait, 2 without
+  column_gutter: 4     # blank columns between them
+```
+
+Columns are split on the `separator` lines, whole sections at a time, at
+whichever boundary makes the tallest column shortest — the card is as tall as
+its tallest column, so that is the thing worth minimising. Sections are never
+cut in half automatically, which is not always what you want: one section of ten
+rows out of nineteen has no good boundary near the middle, and the right column
+ends up half empty. Put the break where you want it instead:
+
+```yaml
+    - label: Commits.Active days
+      value: "..."
+
+    - column_break: true      # the second column starts here
+
+    - label: Commits.Record
+      value: "..."
+```
+
+An explicit break wins over the automatic split, and every break is ignored when
+the card is one column — so leaving one in the file costs nothing if you turn
+the portrait back on.
+
+With the portrait off, nothing reads `themes.<name>.portrait` and
+`assets/portrait.txt` stops mattering. Leave both alone and `show_portrait: true`
+brings the old card straight back.
 
 ---
 
@@ -365,6 +422,7 @@ card:
   padding: 18
   corner_radius: 14
   gutter: 4              # blank columns between portrait and rows
+  column_gutter: 4       # blank columns between two field columns
   min_dots: 2            # shortest dot leader
 ```
 

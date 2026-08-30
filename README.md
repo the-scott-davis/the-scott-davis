@@ -31,6 +31,11 @@ one `<path>` per colour, and suits photographs. Which one your art wants comes
 down to its *luminance* contrast, since characters have no colour to work with —
 [the docs explain how to check](docs/CUSTOMIZING.md#choosing-between-them).
 
+Or no portrait at all: `card.show_portrait: false`, which is what this card
+uses, because the same art is already the avatar next to it. The rows then take
+the full width in two columns —
+[how that splits](docs/CUSTOMIZING.md#turning-the-portrait-off).
+
 ### Fork it
 
 ```bash
@@ -41,7 +46,8 @@ make install
 
 1. **Rename the repository to your GitHub username.** That is what makes it a
    profile README.
-2. **Point `portrait.source` at your own art** and run `make portrait`. Start by
+2. **Point `portrait.source` at your own art** and run `make portrait` — or set
+   `card.show_portrait: false` and skip this step entirely. Start by
    [picking a mode](docs/CUSTOMIZING.md#choosing-between-them) — a logo wants
    `ascii`, a photo wants `pixel`. `make analyze` will tell you which. If you
    want an ASCII portrait of a *person*, read

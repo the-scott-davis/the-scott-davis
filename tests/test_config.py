@@ -184,3 +184,52 @@ class TestPortraitMetrics:
                                     "  portrait_line_height: 11\n"
                                     "  portrait_char_width: 6.5\n")
         assert (card.art_font_size, card.art_line_height, card.art_char_width) == (10, 11, 6.5)
+
+
+class TestPortraitSwitch:
+    """Turning the portrait off, and what that does to the column count."""
+
+    NO_PORTRAIT = """
+    github:
+      username: octocat
+    themes:
+      dark:
+        output: dist/dark.svg
+        bg: "#000"
+        fg: "#fff"
+    card:
+      show_portrait: false
+      fields:
+        - label: OS
+          value: Linux
+    """
+
+    def test_a_theme_needs_no_portrait_when_it_draws_none(self, tmp_path):
+        cfg = Config.load(write(tmp_path, self.NO_PORTRAIT))
+        assert cfg.themes[0].portrait == ""
+
+    def test_columns_default_to_two_without_a_portrait(self, tmp_path):
+        assert Config.load(write(tmp_path, self.NO_PORTRAIT)).card.column_count == 2
+
+    def test_columns_default_to_one_with_a_portrait(self, tmp_path):
+        assert Config.load(write(tmp_path, MINIMAL)).card.column_count == 1
+
+    def test_an_explicit_column_count_wins(self, tmp_path):
+        cfg = Config.load(write(tmp_path, self.NO_PORTRAIT + "  columns: 1\n"))
+        assert cfg.card.column_count == 1
+
+    def test_zero_columns_is_an_error(self, tmp_path):
+        with pytest.raises(ConfigError, match="card.columns"):
+            Config.load(write(tmp_path, self.NO_PORTRAIT + "  columns: 0\n"))
+
+    def test_a_missing_portrait_is_still_an_error_when_one_is_drawn(self, tmp_path):
+        from profilecard.render import render_theme
+
+        missing = MINIMAL.replace("assets/portrait.txt", "assets/gone.txt")
+        cfg = Config.load(write(tmp_path, missing))
+        with pytest.raises(ConfigError, match="gone.txt"):
+            render_theme(cfg, cfg.themes[0], {"username": "octocat"})
+
+    def test_a_field_needs_a_label_a_separator_or_a_break(self, tmp_path):
+        with pytest.raises(ConfigError, match="column_break"):
+            Config.load(write(tmp_path, MINIMAL + "    - value: orphan\n"))

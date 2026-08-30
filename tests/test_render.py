@@ -5,6 +5,7 @@ import pytest
 from profilecard.config import CardConfig, ConfigError, Field
 from profilecard.render import (
     _leader,
+    build_columns,
     build_lines,
     parse_markup,
     substitute,
@@ -100,6 +101,65 @@ class TestBuildLines:
         lines = build_lines(self._card([Field(label="Languages.Real", value="English")]), VALUES)
         keys = [r.text for r in lines[1].runs if r.style == "key"]
         assert keys == ["Languages", "Real"]
+
+
+class TestColumns:
+    """The layout used when the portrait is off."""
+
+    def _fields(self, *sizes):
+        """Sections of the given sizes, separated."""
+        out = []
+        for n in sizes:
+            if out:
+                out.append(Field(separator=True))
+            out.extend(Field(label=f"S{len(out)}.R{i}", value="x") for i in range(n))
+        return out
+
+    def _card(self, fields, **kw):
+        kw.setdefault("show_portrait", False)
+        return CardConfig(title="{username}", fields=fields, min_dots=2, **kw)
+
+    def test_one_column_by_default_with_a_portrait(self):
+        card = CardConfig(title="{username}", fields=self._fields(3, 3))
+        assert len(build_columns(card, VALUES)[1]) == 1
+
+    def test_two_columns_by_default_without_one(self):
+        assert len(build_columns(self._card(self._fields(3, 3)), VALUES)[1]) == 2
+
+    def test_split_minimises_the_tallest_column(self):
+        # 1 / 3 / 10 / 4 / 1 rows: the only sensible cut is before the 4.
+        _, columns = build_columns(self._card(self._fields(1, 3, 10, 4, 1)), VALUES)
+        assert [len(c) for c in columns] == [16, 6]
+
+    def test_sections_are_not_split_across_columns(self):
+        # A cut inside the 10 would balance better, but sections stay whole.
+        _, columns = build_columns(self._card(self._fields(2, 10)), VALUES)
+        assert [len(c) for c in columns] == [2, 10]
+
+    def test_column_break_overrides_the_balancer(self):
+        fields = self._fields(2, 10)
+        fields.insert(5, Field(column_break=True))
+        _, columns = build_columns(self._card(fields), VALUES)
+        assert [len(c) for c in columns] == [5, 8]
+
+    def test_column_break_is_ignored_in_one_column(self):
+        # Turning the portrait back on must not leave a blank line behind.
+        fields = self._fields(2, 10)
+        with_break = [*fields[:5], Field(column_break=True), *fields[5:]]
+        plain = build_lines(self._card(fields, show_portrait=True), VALUES)
+        assert len(build_lines(self._card(with_break, show_portrait=True), VALUES)) == len(plain)
+
+    def test_each_column_aligns_its_own_values(self):
+        # A long label on the left must not push the right column's values out
+        # into a field of dots.
+        fields = [Field(label="A.Very.Long.Label.Indeed", value="x"), Field(separator=True),
+                  Field(label="B", value="y")]
+        _, columns = build_columns(self._card(fields), VALUES)
+        assert visible_length(columns[1][0].runs) == len(". B: .. y")
+
+    def test_more_columns_than_sections_is_harmless(self):
+        _, columns = build_columns(self._card(self._fields(2, 2), columns=9), VALUES)
+        assert [len(c) for c in columns] == [2, 2]
 
 
 class TestEscaping:

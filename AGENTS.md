@@ -92,9 +92,15 @@ self-contained SVG with no linked or embedded image.
    change to the font stack has to be matched by a change to `char_width`, or
    the text will clip. There is one spare column of slack, not more.
 
-8. **The portrait's dimensions drive the card's height.** A taller portrait
-   makes a taller card. `assets/portrait.txt` is generated — regenerate it with
-   `make portrait` rather than editing the characters.
+8. **The portrait's dimensions drive the card's height** — when there is one.
+   A taller portrait makes a taller card. `assets/portrait.txt` is generated —
+   regenerate it with `make portrait` rather than editing the characters. With
+   `card.show_portrait: false` the portrait is not read at all, the card's
+   height comes from its tallest text column instead, and `card.columns`
+   defaults to 2 because a lone column of rows against a full-width README is
+   mostly empty space. Columns split on `separator` boundaries, whole sections
+   at a time, minimising the tallest column; `- column_break: true` overrides
+   that and is ignored in a one-column card.
 
 9. **The portrait mode is chosen by file extension, not a flag.** `render.py`
    sees `.png` and draws rectangles; it sees `.txt` and draws characters. A
