@@ -128,15 +128,43 @@ def _leader(width: int) -> str:
     return " " + "." * (width - 2) + " "
 
 
-def build_lines(card: CardConfig, values: dict[str, str]) -> list[Line]:
-    """Expand every field, then align all values into a single column."""
-    title_runs = parse_markup(substitute(card.title, values, "card.title"))
+@dataclass
+class Entry:
+    """One field, expanded but not yet aligned into a column."""
 
-    # Pass 1: expand labels and values, and measure the label column.
-    expanded: list[tuple[Field, list[Run], list[Run]]] = []
+    label: list[Run]
+    value: list[Run]
+
+
+# The neofetch-style left rail. Its trimmed form is what a separator line shows.
+RAIL = ". "
+
+
+def _expand(card: CardConfig, values: dict[str, str]) -> tuple[list[list[Entry]], set[int]]:
+    """Expand every field into groups of entries, split on separators.
+
+    Groups are the unit the column splitter works in, so a section never lands
+    half in one column and half in the next.  The returned set holds the indices
+    of groups the config demanded start a new column.
+    """
+    groups: list[list[Entry]] = [[]]
+    forced: set[int] = set()
+
     for i, f in enumerate(card.fields):
         if f.separator:
-            expanded.append((f, [], []))
+            groups.append([])
+            continue
+        if f.column_break:
+            # Nothing to break in a one-column card, and a group boundary here
+            # would show up as a stray blank line. Drop it instead, so a break
+            # left in the config costs nothing when the portrait comes back on.
+            if card.column_count <= 1:
+                continue
+            # An empty trailing group would likewise render as a blank line at
+            # the foot of the column, so break at the group already in progress.
+            if groups[-1]:
+                groups.append([])
+            forced.add(len(groups) - 1)
             continue
         where = f"card.fields[{i}] ({f.label})"
         label_runs: list[Run] = []
@@ -145,26 +173,92 @@ def build_lines(card: CardConfig, values: dict[str, str]) -> list[Line]:
                 label_runs.append(Run(".", "dim"))
             label_runs.append(Run(substitute(part, values, where), "key"))
         label_runs.append(Run(":", None))
-        value_runs = parse_markup(substitute(f.value, values, where))
-        expanded.append((f, label_runs, value_runs))
+        groups[-1].append(Entry(label_runs, parse_markup(substitute(f.value, values, where))))
 
-    gutter = ". "  # neofetch-style left rail
+    return groups, forced
+
+
+def _rows(groups: list[list[Entry]], start: int, stop: int) -> int:
+    """Lines that ``groups[start:stop]`` occupies, separators included."""
+    return sum(len(g) for g in groups[start:stop]) + max(0, stop - start - 1)
+
+
+def _split(groups: list[list[Entry]], forced: set[int], columns: int) -> list[list[list[Entry]]]:
+    """Distribute groups across ``columns``, minimising the tallest column.
+
+    The card's height is whatever the tallest column comes to, so minimising
+    that maximum is the objective -- not evening out the columns for its own
+    sake.  Explicit ``column_break`` fields win outright when present.
+    """
+    if columns <= 1 or len(groups) <= 1:
+        return [groups]
+    if forced:
+        cuts = [0, *sorted(forced), len(groups)]
+        return [groups[a:b] for a, b in zip(cuts, cuts[1:]) if b > a]
+
+    n = len(groups)
+    columns = min(columns, n)
+    # best[k][i]: the tallest column achievable packing the first i groups into
+    # k columns. Small enough (groups number single digits) that the obvious
+    # cubic fill costs nothing.
+    best = [[float("inf")] * (n + 1) for _ in range(columns + 1)]
+    at = [[0] * (n + 1) for _ in range(columns + 1)]
+    best[0][0] = 0
+    for k in range(1, columns + 1):
+        for i in range(k, n + 1):
+            for j in range(k - 1, i):
+                if best[k - 1][j] == float("inf"):
+                    continue
+                height = max(best[k - 1][j], _rows(groups, j, i))
+                if height < best[k][i]:
+                    best[k][i], at[k][i] = height, j
+
+    cuts = [n]
+    for k in range(columns, 0, -1):
+        cuts.append(at[k][cuts[-1]])
+    cuts.reverse()
+    return [groups[a:b] for a, b in zip(cuts, cuts[1:])]
+
+
+def _column_lines(groups: list[list[Entry]], card: CardConfig) -> list[Line]:
+    """Align one column's values into a single dot-leadered column."""
     label_width = max(
-        (visible_length(lr) for _, lr, _ in expanded if lr),
+        (visible_length(e.label) for g in groups for e in g),
         default=0,
     )
     value_col = label_width + max(2, card.min_dots + 2)
 
-    lines = [Line(title_runs)]
-    for f, label_runs, value_runs in expanded:
-        if f.separator:
-            lines.append(Line([Run(gutter.rstrip(), "dim")]))
-            continue
-        pad = value_col - visible_length(label_runs)
-        runs = [Run(gutter, "dim"), *label_runs, Run(_leader(pad), "dim")]
-        runs.extend(value_runs or [Run("", None)])
-        lines.append(Line(runs))
+    lines: list[Line] = []
+    for i, group in enumerate(groups):
+        if i:
+            lines.append(Line([Run(RAIL.rstrip(), "dim")]))
+        for entry in group:
+            pad = value_col - visible_length(entry.label)
+            runs = [Run(RAIL, "dim"), *entry.label, Run(_leader(pad), "dim")]
+            runs.extend(entry.value or [Run("", None)])
+            lines.append(Line(runs))
     return lines
+
+
+def build_columns(
+    card: CardConfig, values: dict[str, str]
+) -> tuple[list[Run], list[list[Line]]]:
+    """The title, plus one list of lines per column.
+
+    Each column aligns its own value gutter: sharing one across the card would
+    let a long label in the left column push the right column's values out into
+    a field of dots.
+    """
+    title_runs = parse_markup(substitute(card.title, values, "card.title"))
+    groups, forced = _expand(card, values)
+    split = _split(groups, forced, card.column_count)
+    return title_runs, [_column_lines(g, card) for g in split]
+
+
+def build_lines(card: CardConfig, values: dict[str, str]) -> list[Line]:
+    """The single-column card, title first.  Kept for the one-column layout."""
+    title_runs, columns = build_columns(card, values)
+    return [Line(title_runs), *(columns[0] if columns else [])]
 
 
 def _runs_to_tspans(runs: list[Run], theme_classes: dict[str, str]) -> str:
@@ -232,31 +326,48 @@ def _ascii_portrait(
 def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
     """Render one complete SVG document."""
     card = cfg.card
-    portrait_path = Path(theme.portrait)
-    if not portrait_path.exists():
-        raise ConfigError(
-            f"themes.{theme.name}.portrait: {portrait_path} not found "
-            "-- run `python -m profilecard.portrait` first"
-        )
-
-    lines = build_lines(card, values)
-    text_cols = max((visible_length(l.runs) for l in lines), default=0)
-
     cw, lh, pad = card.char_width, card.line_height, card.padding
     baseline = pad + lh - 5  # first baseline, nudged for cap height
 
-    if portrait_path.suffix.lower() in PIXEL_SUFFIXES:
-        portrait_parts, portrait_w, portrait_h = _pixel_portrait(portrait_path, card, pad)
+    title_runs, columns = build_columns(card, values)
+    col_widths = [
+        max((visible_length(l.runs) for l in col), default=0) for col in columns
+    ]
+    # Every column starts one row below the title, so the card is as tall as the
+    # tallest of them.
+    body_rows = max((len(col) for col in columns), default=0)
+    text_cols = max(
+        sum(col_widths) + card.column_gutter * (len(columns) - 1),
+        visible_length(title_runs),
+    )
+
+    portrait_parts: list[str] = []
+    portrait_w = portrait_h = 0
+    if card.show_portrait:
+        if not theme.portrait:
+            raise ConfigError(
+                f"themes.{theme.name}.portrait: required unless card.show_portrait is false"
+            )
+        portrait_path = Path(theme.portrait)
+        if not portrait_path.exists():
+            raise ConfigError(
+                f"themes.{theme.name}.portrait: {portrait_path} not found "
+                "-- run `python -m profilecard.portrait` first"
+            )
+        if portrait_path.suffix.lower() in PIXEL_SUFFIXES:
+            portrait_parts, portrait_w, portrait_h = _pixel_portrait(portrait_path, card, pad)
+        else:
+            portrait_parts, portrait_w, portrait_h = _ascii_portrait(
+                portrait_path, card, pad, theme.fg
+            )
+        text_x = round(pad + portrait_w + card.gutter * cw)
     else:
-        portrait_parts, portrait_w, portrait_h = _ascii_portrait(
-            portrait_path, card, pad, theme.fg
-        )
+        text_x = pad
 
     # One spare column: monospace advances differ by a hair across platforms and
     # a clipped last character is far worse than a sliver of extra padding.
-    text_x = round(pad + portrait_w + card.gutter * cw)
     width = round(text_x + (text_cols + 1) * cw + pad)
-    height = pad * 2 + max(portrait_h, len(lines) * lh)
+    height = pad * 2 + max(portrait_h, (1 + body_rows) * lh)
 
     classes = {t: t for t in STYLE_TAGS}
 
@@ -285,14 +396,21 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
     # Portrait column.
     parts.extend(portrait_parts)
 
-    # Field column.
-    parts.append(f'<text x="{text_x}" y="{baseline}" fill="{theme.fg}">')
-    for i, line in enumerate(lines):
-        y = baseline + i * lh
-        parts.append(
-            f'<tspan x="{text_x}" y="{y}">{_runs_to_tspans(line.runs, classes)}</tspan>'
-        )
-    parts.append("</text>")
+    # Field columns. The title shares the first one's <text> element, so a
+    # one-column card comes out exactly as it did before columns existed.
+    x = text_x
+    for i, (col, col_width) in enumerate(zip(columns, col_widths)):
+        parts.append(f'<text x="{x}" y="{baseline}" fill="{theme.fg}">')
+        if i == 0:
+            parts.append(
+                f'<tspan x="{x}" y="{baseline}">'
+                f"{_runs_to_tspans(title_runs, classes)}</tspan>"
+            )
+        for row, line in enumerate(col, start=1):
+            y = baseline + row * lh
+            parts.append(f'<tspan x="{x}" y="{y}">{_runs_to_tspans(line.runs, classes)}</tspan>')
+        parts.append("</text>")
+        x = round(x + (col_width + card.column_gutter) * cw)
 
     # Rule under the title, sized to the field column.
     rule_y = baseline + 6

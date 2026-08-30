@@ -109,6 +109,19 @@ card:
   padding: 18
   corner_radius: 14
   gutter: 4              # blank columns between the portrait and the field list
+
+  # The portrait is optional. Turn it off if the same art is already your GitHub
+  # avatar -- the profile page then shows it twice, side by side.
+  #
+  # With no portrait the whole width goes to text, so `columns` defaults to 2:
+  # one tall column of rows against a full-width README is mostly empty space.
+  # Set it explicitly (1, 2, 3, ...) to override. Columns are split on the
+  # `separator` lines below, whole sections at a time, choosing the split that
+  # makes the tallest column as short as possible -- or wherever you put a
+  # `- column_break: true` field, which wins over that.
+  show_portrait: false
+  # columns: 2
+  column_gutter: 4       # blank columns between two field columns
   # The portrait is texture, not text, so it is set smaller than the field list.
   # That is what buys the column count an ascii portrait needs to hold detail.
   portrait_font_size: 10
@@ -145,6 +158,13 @@ card:
       value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
     - label: Commits.Streak
       value: "{current_streak} days <dim>·</dim> best {longest_streak}"
+
+    # Where the second column starts. Purely a balance knob: delete it and the
+    # split falls back to the nearest separator, which leaves the right column
+    # half empty because Commits is ten of the nineteen rows. Ignored entirely
+    # when the portrait is back on, since that card is one column.
+    - column_break: true
+
     - label: Commits.Record
       value: "{busiest_count} in one day <dim>({busiest_date})</dim>"
     - label: Commits.Busiest day
