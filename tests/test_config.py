@@ -233,3 +233,31 @@ class TestPortraitSwitch:
     def test_a_field_needs_a_label_a_separator_or_a_break(self, tmp_path):
         with pytest.raises(ConfigError, match="column_break"):
             Config.load(write(tmp_path, MINIMAL + "    - value: orphan\n"))
+
+    def test_a_heading_parses_as_a_field(self, tmp_path):
+        cfg = Config.load(write(tmp_path, MINIMAL + "    - heading: Stack\n"))
+        assert cfg.card.fields[-1].heading == "Stack"
+
+    def test_the_heading_colour_falls_back_to_fg(self, tmp_path):
+        assert Config.load(write(tmp_path, MINIMAL)).themes[0].heading == "#fff"
+
+
+class TestHeatmapConfig:
+    def test_a_heatmap_field_parses(self, tmp_path):
+        cfg = Config.load(write(tmp_path, MINIMAL + "    - heatmap: contributions\n"))
+        assert cfg.card.fields[-1].heatmap == "contributions"
+
+    def test_an_unknown_source_names_the_valid_ones(self, tmp_path):
+        with pytest.raises(ConfigError, match="contributions"):
+            Config.load(write(tmp_path, MINIMAL + "    - heatmap: weather\n"))
+
+    def test_the_ramp_is_derived_from_the_key_colour(self, tmp_path):
+        # A fork gets a card-coloured grid without configuring one.
+        ramp = Config.load(write(tmp_path, MINIMAL)).themes[0].heat
+        assert len(ramp) == 5
+        assert ramp[-1] == "#ffffff"  # fg, since MINIMAL sets no key
+
+    def test_a_ramp_of_the_wrong_length_is_an_error(self, tmp_path):
+        bad = MINIMAL.replace('fg: "#fff"', 'fg: "#fff"\n    heat: ["#000", "#fff"]')
+        with pytest.raises(ConfigError, match="5 colours"):
+            Config.load(write(tmp_path, bad))

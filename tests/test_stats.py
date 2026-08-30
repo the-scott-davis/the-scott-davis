@@ -114,10 +114,10 @@ class TestOfflineRendering:
             assert svg.startswith("<?xml")
             assert "{" not in svg.split("<style>")[0]  # no unexpanded placeholders
 
-    def test_unknown_figures_render_as_a_dash_not_an_empty_gap(self):
+    def test_unknown_figures_render_as_a_marker_not_an_empty_gap(self):
         from profilecard.config import Config
-        from profilecard.stats import to_values
+        from profilecard.stats import UNKNOWN, to_values
 
         values = to_values(Config.load("config.yml"), Stats(username="nobody"))
         for key in ("github_age", "busiest_weekday", "tech_6", "language_top"):
-            assert values[key] == "—", f"{key} should be visibly unknown, not blank"
+            assert values[key] == UNKNOWN, f"{key} should be visibly unknown, not blank"

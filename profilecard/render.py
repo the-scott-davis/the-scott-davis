@@ -9,6 +9,8 @@ computed from the content, so the config file is the only thing you edit.
 
 from __future__ import annotations
 
+import datetime
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,7 +24,7 @@ from .pixel_art import boxes_to_paths, load_boxes
 PIXEL_SUFFIXES = {".png", ".gif", ".bmp", ".webp"}
 
 # <key>..</key>, <dim>..</dim>, and friends.  Anything else stays literal text.
-STYLE_TAGS = ("key", "value", "dim", "add", "del")
+STYLE_TAGS = ("key", "value", "dim", "add", "del", "heading")
 _TAG_RE = re.compile(r"<(/?)(" + "|".join(STYLE_TAGS) + r")>")
 _NAME_RE = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
 
@@ -112,9 +114,16 @@ def visible_length(runs: list[Run]) -> int:
 
 @dataclass
 class Line:
-    """One rendered row of the right-hand column."""
+    """One rendered row of a field column."""
 
     runs: list[Run]
+    # Headings get a rule drawn from the end of the text to the column edge, so
+    # render_theme has to be able to pick them out again.
+    heading: bool = False
+    # A contribution grid occupies its row band instead of text, and is wider
+    # than its (empty) text, so it has to claim a width of its own.
+    heatmap: bool = False
+    min_cols: int = 0
 
 
 def _leader(width: int) -> str:
@@ -130,14 +139,61 @@ def _leader(width: int) -> str:
 
 @dataclass
 class Entry:
-    """One field, expanded but not yet aligned into a column."""
+    """One row, expanded but not yet aligned into a column.
+
+    A heading carries no label or value; it is still an entry so that it counts
+    as one row everywhere the splitter measures a group.
+    """
 
     label: list[Run]
     value: list[Run]
+    heading: str | None = None
+    heatmap: bool = False
+    rows: int = 1  # text rows this entry occupies; a grid claims several
 
 
 # The neofetch-style left rail. Its trimmed form is what a separator line shows.
 RAIL = ". "
+
+
+GRID_WEEKS = 53
+GRID_DAYS = 7
+GRID_TOP = 12  # space between the heading above and the first row of squares
+
+
+def _grid_size(card: CardConfig) -> tuple[int, int]:
+    """Pixel width and height of the contribution grid."""
+    pitch = card.heat_cell + card.heat_gap
+    return GRID_WEEKS * pitch - card.heat_gap, GRID_DAYS * pitch - card.heat_gap
+
+
+def _grid_rows(card: CardConfig) -> int:
+    """Text rows the grid occupies, so the column splitter can measure it."""
+    _, height = _grid_size(card)
+    return max(1, math.ceil((GRID_TOP + height) / card.line_height))
+
+
+def _grid_cells(calendar: list | None, ramp: list[str]) -> list[tuple[int, int, str]]:
+    """(column, weekday, colour) per day, laid out the way GitHub's grid is.
+
+    An empty calendar still yields a full grid in the quietest shade: the
+    offline build has no numbers, and a card that changes shape without a token
+    is no use for working on the layout.
+    """
+    if not calendar:
+        return [(x, y, ramp[0]) for x in range(GRID_WEEKS) for y in range(GRID_DAYS)]
+
+    peak = max((n for _, n in calendar), default=0) or 1
+    cells, column = [], 0
+    for i, (iso, count) in enumerate(calendar):
+        weekday = datetime.date.fromisoformat(iso).isoweekday() % 7  # Sunday first
+        if weekday == 0 and i:
+            column += 1
+        # Square root, not linear: against a peak of 84 a linear ramp buckets
+        # every ordinary week into the quietest shade and the year reads dead.
+        shade = ramp[0] if not count else ramp[min(4, 1 + int((count / peak) ** 0.5 * 3.999))]
+        cells.append((column, weekday, shade))
+    return cells
 
 
 def _expand(card: CardConfig, values: dict[str, str]) -> tuple[list[list[Entry]], set[int]]:
@@ -166,6 +222,19 @@ def _expand(card: CardConfig, values: dict[str, str]) -> tuple[list[list[Entry]]
                 groups.append([])
             forced.add(len(groups) - 1)
             continue
+        if f.heatmap is not None:
+            groups[-1].append(Entry([], [], heatmap=True, rows=_grid_rows(card)))
+            continue
+        if f.heading is not None:
+            where = f"card.fields[{i}] ({f.heading})"
+            # A heading is its own section, so it opens a group the way a
+            # separator does -- which is what puts a blank line above it.
+            if groups[-1]:
+                groups.append([])
+            groups[-1].append(
+                Entry([], [], heading=substitute(f.heading, values, where))
+            )
+            continue
         where = f"card.fields[{i}] ({f.label})"
         label_runs: list[Run] = []
         for j, part in enumerate(f.label_parts):
@@ -180,7 +249,10 @@ def _expand(card: CardConfig, values: dict[str, str]) -> tuple[list[list[Entry]]
 
 def _rows(groups: list[list[Entry]], start: int, stop: int) -> int:
     """Lines that ``groups[start:stop]`` occupies, separators included."""
-    return sum(len(g) for g in groups[start:stop]) + max(0, stop - start - 1)
+    return (
+        sum(e.rows for g in groups[start:stop] for e in g)
+        + max(0, stop - start - 1)
+    )
 
 
 def _split(groups: list[list[Entry]], forced: set[int], columns: int) -> list[list[list[Entry]]]:
@@ -223,7 +295,7 @@ def _split(groups: list[list[Entry]], forced: set[int], columns: int) -> list[li
 def _column_lines(groups: list[list[Entry]], card: CardConfig) -> list[Line]:
     """Align one column's values into a single dot-leadered column."""
     label_width = max(
-        (visible_length(e.label) for g in groups for e in g),
+        (visible_length(e.label) for g in groups for e in g if e.heading is None),
         default=0,
     )
     value_col = label_width + max(2, card.min_dots + 2)
@@ -231,8 +303,24 @@ def _column_lines(groups: list[list[Entry]], card: CardConfig) -> list[Line]:
     lines: list[Line] = []
     for i, group in enumerate(groups):
         if i:
-            lines.append(Line([Run(RAIL.rstrip(), "dim")]))
+            # The rail dot marks a break between rows. A heading already marks
+            # one, and the two together just read as clutter.
+            headed = bool(group) and group[0].heading is not None
+            lines.append(Line([] if headed else [Run(RAIL.rstrip(), "dim")]))
         for entry in group:
+            if entry.heatmap:
+                width, _ = _grid_size(card)
+                lines.append(
+                    Line([], heatmap=True, min_cols=math.ceil(width / card.char_width))
+                )
+                # Filler keeps every later row on the same baseline grid.
+                lines.extend(Line([]) for _ in range(entry.rows - 1))
+                continue
+            if entry.heading is not None:
+                # Set flush left, where the rail would be: the indent is what
+                # separates a heading from the labels under it.
+                lines.append(Line([Run(entry.heading, "heading")], heading=True))
+                continue
             pad = value_col - visible_length(entry.label)
             runs = [Run(RAIL, "dim"), *entry.label, Run(_leader(pad), "dim")]
             runs.extend(entry.value or [Run("", None)])
@@ -323,7 +411,9 @@ def _ascii_portrait(
     return parts, round(cols * cw), len(rows) * lh
 
 
-def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
+def render_theme(
+    cfg: Config, theme: Theme, values: dict[str, str], calendar: list | None = None
+) -> str:
     """Render one complete SVG document."""
     card = cfg.card
     cw, lh, pad = card.char_width, card.line_height, card.padding
@@ -331,7 +421,8 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
 
     title_runs, columns = build_columns(card, values)
     col_widths = [
-        max((visible_length(l.runs) for l in col), default=0) for col in columns
+        max((max(visible_length(l.runs), l.min_cols) for l in col), default=0)
+        for col in columns
     ]
     # Every column starts one row below the title, so the card is as tall as the
     # tallest of them.
@@ -367,7 +458,9 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
     # One spare column: monospace advances differ by a hair across platforms and
     # a clipped last character is far worse than a sliver of extra padding.
     width = round(text_x + (text_cols + 1) * cw + pad)
-    height = pad * 2 + max(portrait_h, (1 + body_rows) * lh)
+    # The title row, the gap under it and its rule, then the columns.
+    gap = card.title_gap
+    height = pad * 2 + max(portrait_h, (1 + body_rows) * lh + gap)
 
     classes = {t: t for t in STYLE_TAGS}
 
@@ -378,7 +471,7 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
         f'font-family="ConsolasFallback,\'DejaVu Sans Mono\',Menlo,Consolas,monospace" '
         f'font-size="{card.font_size}px">',
         f"<title>{xml_escape(values.get('name', values['username']))}"
-        f" — GitHub profile card</title>",
+        f"'s GitHub profile card</title>",
         "<style>",
         "@font-face{src:local('Consolas');font-family:'ConsolasFallback';"
         "font-display:swap;size-adjust:109%;}",
@@ -387,6 +480,7 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
         f".dim{{fill:{theme.dim};}}",
         f".add{{fill:{theme.add};}}",
         f".del{{fill:{theme.delete};}}",
+        f".heading{{fill:{theme.heading};}}",
         "text,tspan{white-space:pre;}",
         "</style>",
         f'<rect width="{width}" height="{height}" fill="{theme.bg}" '
@@ -407,13 +501,45 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
                 f"{_runs_to_tspans(title_runs, classes)}</tspan>"
             )
         for row, line in enumerate(col, start=1):
-            y = baseline + row * lh
+            y = baseline + row * lh + gap
             parts.append(f'<tspan x="{x}" y="{y}">{_runs_to_tspans(line.runs, classes)}</tspan>')
         parts.append("</text>")
+        # Each heading gets a rule running from the end of its text to the edge
+        # of its own column. Drawn as a line rather than box-drawing characters
+        # because the layout reserves a fixed advance per character and a font
+        # without the glyph would substitute one of a different width.
+        cell, cgap = card.heat_cell, card.heat_gap
+        for row, line in enumerate(col, start=1):
+            if not line.heatmap:
+                continue
+            # Sits in its own row band, starting just below the row above it.
+            top = baseline + (row - 1) * lh + gap + GRID_TOP
+            parts.append(f'<g transform="translate({x} {top})" shape-rendering="crispEdges">')
+            for cx, cy, shade in _grid_cells(calendar, theme.heat):
+                parts.append(
+                    f'<rect x="{cx * (cell + cgap)}" y="{cy * (cell + cgap)}" '
+                    f'width="{cell}" height="{cell}" rx="1" fill="{shade}"/>'
+                )
+            parts.append("</g>")
+
+        for row, line in enumerate(col, start=1):
+            if not line.heading:
+                continue
+            rule_x = round(x + (visible_length(line.runs) + 1) * cw)
+            end = round(x + col_width * cw)
+            if end <= rule_x:
+                continue
+            y = baseline + row * lh + gap - 5  # centred on the x-height
+            parts.append(
+                f'<line x1="{rule_x}" y1="{y}" x2="{end}" y2="{y}" '
+                f'stroke="{theme.rule}" stroke-width="1"/>'
+            )
         x = round(x + (col_width + card.column_gutter) * cw)
 
-    # Rule under the title, sized to the field column.
-    rule_y = baseline + 6
+    # Rule under the title, sized to the field columns. It belongs to the title,
+    # so it sits just under the descenders and `title_gap` pushes the body away
+    # from the pair rather than splitting the difference between them.
+    rule_y = baseline + 8
     parts.append(
         f'<line x1="{text_x}" y1="{rule_y}" x2="{round(text_x + text_cols * cw)}" '
         f'y2="{rule_y}" stroke="{theme.rule}" stroke-width="1"/>'
@@ -423,10 +549,12 @@ def render_theme(cfg: Config, theme: Theme, values: dict[str, str]) -> str:
     return "\n".join(parts) + "\n"
 
 
-def render_all(cfg: Config, values: dict[str, str]) -> list[Path]:
+def render_all(
+    cfg: Config, values: dict[str, str], calendar: list | None = None
+) -> list[Path]:
     written = []
     for theme in cfg.themes:
-        svg = render_theme(cfg, theme, values)
+        svg = render_theme(cfg, theme, values, calendar)
         out = Path(theme.output)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(svg, encoding="utf-8")

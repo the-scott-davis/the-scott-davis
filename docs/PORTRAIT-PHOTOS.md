@@ -1,6 +1,6 @@
 # Shooting a photo that works as ASCII
 
-ASCII has one channel: tone. No colour, no line, no edge detection — just how
+ASCII has one channel: tone. No colour, no line, no edge detection, just how
 dark each cell is. So an ASCII portrait is not a drawing of your face. It is a
 drawing of **the shadows on your face**. Everything below follows from that.
 
@@ -16,7 +16,7 @@ Open the photo on your phone, take any editor, and **drag saturation to zero.**
 
 That grey image is precisely what the converter sees. If you still read as you,
 the ASCII will work. If it goes flat and doughy, no amount of tuning will save
-it — the information is already gone.
+it, because the information is already gone.
 
 To put a number on it:
 
@@ -58,7 +58,7 @@ lit, half in shadow). Either is ideal.
 ### 2. Do not fill the shadows
 
 Every instinct from ordinary portraiture says to bounce light back into the dark
-side. Resist it. Let the shadow side go genuinely dark — three or four stops
+side. Resist it. Let the shadow side go genuinely dark, three or four stops
 below the lit side. That gap *is* the picture.
 
 ### 3. Dark background, and stand away from it
@@ -73,7 +73,7 @@ tonal detail that competes with your face for the same handful of characters.
 ### 4. Wear something dark
 
 This is a specific, measured failure mode. In the headshot above, the subject's
-skin measured luminance 134 and his green polo measured 136 — two levels apart
+skin measured luminance 134 and his green polo measured 136, two levels apart
 out of 255. In colour they are obviously different; in grey the shoulders and
 the face are the same object. Charcoal or black solves it. So does a plain white
 shirt, in the other direction. Mid-tone anything is the risk.
@@ -82,7 +82,7 @@ shirt, in the other direction. Mid-tone anything is the risk.
 
 Eyes, eyebrows and eye sockets carry more identity than any other feature.
 Sunglasses delete them. A cap brim in bright sun throws the entire upper face
-into flat shade, which is what happened to the beach photo — plenty of global
+into flat shade, which is what happened to the beach photo: plenty of global
 contrast, none of it on the face.
 
 Ordinary glasses are usually fine, but watch for reflections blanking the lenses.
@@ -136,7 +136,7 @@ is exactly right.
 
 ## Workflow
 
-Shoot maybe eight frames, varying the light angle each time — swing the lamp
+Shoot maybe eight frames, varying the light angle each time. Swing the lamp
 further round, raise it, lower it. It costs nothing.
 
 Then batch-check them:
@@ -149,7 +149,7 @@ done
 ```
 
 Take the highest edge strength, put it in `portrait.source`, and tune from
-there — see [CUSTOMIZING.md](CUSTOMIZING.md#tuning-the-portrait).
+there. See [CUSTOMIZING.md](CUSTOMIZING.md#tuning-the-portrait).
 
 If nothing clears 130 and you would rather not reshoot, `mode: pixel` renders
 photographs well precisely because it keeps the colour that ASCII has to discard.

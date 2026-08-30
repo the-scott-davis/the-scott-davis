@@ -106,6 +106,11 @@ def collect(cfg: Config, client: Client, *, verbose: bool = False) -> Stats:
     stats.current_streak = cal.current_streak
     stats.busiest_count = cal.busiest_count
     stats.busiest_date = cal.busiest_date
+    stats.calendar = [
+        (d["date"], d["contributionCount"])
+        for week in profile["calendar_raw"]["weeks"]
+        for d in week["contributionDays"]
+    ]
 
     # Commit counts come from the contributions API, the same source as the
     # graph on your profile.  Deriving them from a repository walk undercounts
@@ -171,6 +176,9 @@ def offline_stats(cfg: Config) -> Stats:
     cache = LocCache()
     stats.loc_added, stats.loc_deleted, _ = cache.totals()
     stats.contributed = len(cache.entries)
+    # An empty grid still renders at full size, every cell in the "no activity"
+    # shade, so `make build` shows the real layout without a token.
+    stats.calendar = []
     return stats
 
 
@@ -179,7 +187,7 @@ def offline_stats(cfg: Config) -> Stats:
 # valid against a live fetch is also valid offline: `--offline` renders from an
 # empty cache, and a field referencing {github_age} must not fail the build just
 # because nobody supplied a token.
-UNKNOWN = "—"
+UNKNOWN = "n/a"
 OPTIONAL_DEFAULTS = {
     "age": UNKNOWN,
     "birthday": UNKNOWN,

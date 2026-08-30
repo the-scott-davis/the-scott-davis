@@ -4,6 +4,10 @@ import pytest
 
 from profilecard.config import CardConfig, ConfigError, Field
 from profilecard.render import (
+    GRID_DAYS,
+    GRID_WEEKS,
+    _grid_cells,
+    _grid_rows,
     _leader,
     build_columns,
     build_lines,
@@ -160,6 +164,100 @@ class TestColumns:
     def test_more_columns_than_sections_is_harmless(self):
         _, columns = build_columns(self._card(self._fields(2, 2), columns=9), VALUES)
         assert [len(c) for c in columns] == [2, 2]
+
+
+class TestHeadings:
+    """Section titles, and the group boundary they imply."""
+
+    def _card(self, fields, **kw):
+        kw.setdefault("show_portrait", False)
+        return CardConfig(title="{username}", fields=fields, min_dots=2, **kw)
+
+    def _lines(self, fields, **kw):
+        return build_lines(self._card(fields, show_portrait=True, **kw), VALUES)[1:]
+
+    def test_a_heading_renders_flush_left_with_no_rail(self):
+        lines = self._lines([Field(heading="Stack"), Field(label="A", value="x")])
+        assert [(r.text, r.style) for r in lines[0].runs] == [("Stack", "heading")]
+        assert lines[0].heading
+
+    def test_a_heading_opens_a_section_without_a_rail_dot(self):
+        # The heading is the break; a rail dot on top of it is just clutter.
+        lines = self._lines([
+            Field(label="A", value="x"),
+            Field(heading="Stack"),
+            Field(label="B", value="y"),
+        ])
+        assert [visible_length(l.runs) for l in lines[:3]][1] == 0
+
+    def test_a_leading_heading_gets_no_blank_line_above_it(self):
+        lines = self._lines([Field(heading="Stack"), Field(label="A", value="x")])
+        assert len(lines) == 2
+
+    def test_a_heading_does_not_widen_the_label_column(self):
+        # "A Very Long Heading" is not a label and must not pad the leaders out.
+        short = self._lines([Field(heading="S"), Field(label="A", value="x")])
+        long = self._lines([Field(heading="A Very Long Heading"), Field(label="A", value="x")])
+        assert visible_length(short[1].runs) == visible_length(long[1].runs)
+
+    def test_a_heading_starts_a_column_group(self):
+        # Four one-row sections: the split lands between the second and third.
+        fields = [f for i in range(4) for f in
+                  (Field(heading=f"H{i}"), Field(label=f"L{i}", value="x"))]
+        _, columns = build_columns(self._card(fields), VALUES)
+        assert [len(c) for c in columns] == [5, 5]
+
+
+class TestHeatmap:
+    """The contribution grid: a block that occupies rows instead of text."""
+
+    def _card(self, fields, **kw):
+        kw.setdefault("show_portrait", False)
+        return CardConfig(title="{username}", fields=fields, min_dots=2, **kw)
+
+    RAMP = ["e", "1", "2", "3", "4"]
+
+    def test_an_empty_calendar_still_fills_the_grid(self):
+        # Offline builds have no numbers; the card must not change shape.
+        cells = _grid_cells([], self.RAMP)
+        assert len(cells) == GRID_WEEKS * GRID_DAYS
+        assert {c[2] for c in cells} == {"e"}
+
+    def test_a_day_with_no_activity_takes_the_quietest_shade(self):
+        cells = _grid_cells([("2026-01-04", 0), ("2026-01-05", 9)], self.RAMP)
+        assert cells[0][2] == "e"
+        assert cells[1][2] != "e"
+
+    def test_shading_is_square_root_not_linear(self):
+        # Against a peak of 100, a linear ramp would bucket 10 into the quietest
+        # active shade and the whole year would read dead.
+        cells = _grid_cells([("2026-01-04", 10), ("2026-01-05", 100)], self.RAMP)
+        assert cells[0][2] == "2"
+        assert cells[1][2] == "4"
+
+    def test_weeks_advance_on_sundays(self):
+        # 2026-01-04 is a Sunday, so the following Sunday starts column 1.
+        days = [(f"2026-01-{d:02d}", 1) for d in range(4, 13)]
+        cells = _grid_cells(days, self.RAMP)
+        assert [c[0] for c in cells] == [0] * 7 + [1, 1]
+        assert cells[0][1] == 0  # Sunday sits on the top row
+
+    def test_the_grid_claims_several_rows(self):
+        card = self._card([], heat_cell=7, heat_gap=2)
+        assert _grid_rows(card) > 1
+
+    def test_the_splitter_counts_those_rows(self):
+        # A grid worth 4 rows must not be balanced as though it were one line.
+        rows = _grid_rows(self._card([]))
+        fields = [Field(label="A", value="x"), Field(separator=True),
+                  Field(heatmap="contributions")]
+        _, columns = build_columns(self._card(fields), VALUES)
+        assert [len(c) for c in columns] == [1, rows]
+
+    def test_the_column_is_widened_to_fit_the_grid(self):
+        # The grid has no text, so without min_cols the column would collapse.
+        _, columns = build_columns(self._card([Field(heatmap="contributions")]), VALUES)
+        assert columns[0][0].min_cols > 40
 
 
 class TestEscaping:

@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.check:
-        print(f"{cfg.path}: ok — {len(cfg.card.fields)} fields, "
+        print(f"{cfg.path}: ok, {len(cfg.card.fields)} fields, "
               f"{len(cfg.themes)} theme(s): {', '.join(t.name for t in cfg.themes)}")
         return 0
 
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         values = to_values(cfg, stats, github_name)
-        written = render_all(cfg, values)
+        written = render_all(cfg, values, stats.calendar)
     except ConfigError as exc:
         print(f"config error: {exc}", file=sys.stderr)
         return 2
