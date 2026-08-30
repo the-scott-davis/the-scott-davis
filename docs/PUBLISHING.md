@@ -4,8 +4,8 @@ The card is rebuilt **on the owner's machine**, not by GitHub Actions, and then
 pushed like any other commit.
 
 That is a deliberate security choice rather than a convenience one. Building in
-CI would mean creating a personal access token with `repo` scope — read and
-write access to every repository you own — and handing a copy to GitHub to store
+CI would mean creating a personal access token with `repo` scope, meaning read
+and write access to every repository you own, and handing a copy to GitHub to store
 as a secret. It would sit there indefinitely, and rotating it would mean
 remembering it exists.
 
@@ -18,7 +18,7 @@ GITHUB_TOKEN="$(gh auth token)" "$PYTHON" -m profilecard
 ```
 
 It exists in one process's environment for a few seconds. Nothing is written to
-disk, committed, or stored by GitHub. Rotating it is `gh auth refresh` — there
+disk, committed, or stored by GitHub. Rotating it is `gh auth refresh`, and there
 is no second credential to remember.
 
 The consequence of this choice is that **no workflow in this repository handles a
@@ -34,7 +34,7 @@ make venv                       # virtualenv for the scheduled job
 
 `make venv` builds from `python3.11` rather than whatever `python3` points at.
 Pyenv-managed interpreters are frequently linked against an OpenSSL that is no
-longer installed, which breaks HTTPS entirely — the failure looks like a network
+longer installed, which breaks HTTPS entirely. The failure looks like a network
 problem and is not one. The `venv` target checks for this and refuses to produce
 a broken environment.
 
@@ -48,7 +48,7 @@ whatever scheduler you already use at it.
 /ABSOLUTE/PATH/TO/REPO/scripts/nightly.sh
 ```
 
-Run `pwd` in the repository to get that path. Use an absolute one — schedulers
+Run `pwd` in the repository to get that path. Use an absolute one: schedulers
 generally do not expand `~`, and rarely inherit your interactive shell's `PATH`.
 
 Any of cron, launchd, pm2, systemd timers, or a scheduler you already run will

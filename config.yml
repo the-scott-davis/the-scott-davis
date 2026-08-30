@@ -122,6 +122,9 @@ card:
   show_portrait: false
   # columns: 2
   column_gutter: 4       # blank columns between two field columns
+  title_gap: 16          # extra pixels under the title, around its rule
+  heat_cell: 7           # side of one contribution square
+  heat_gap: 2            # space between squares
   # The portrait is texture, not text, so it is set smaller than the field list.
   # That is what buys the column count an ascii portrait needs to hold detail.
   portrait_font_size: 10
@@ -131,66 +134,70 @@ card:
   portrait_radius: 6     # rounded corners, only used by `mode: pixel`
 
   fields:
+    # `heading` opens a section and puts a blank line above itself, so the rows
+    # under one drop the prefix they used to carry: "Commits.Per day" was only
+    # repeating what the heading now says.
+    #
+    # Left column: who, what I build with, and when I work.
+    - heading: Profile
     - label: GitHub age
       value: "{github_age}"
-
-    - separator: true
-
-    # Detected from dependency manifests, not self-reported.
-    - label: Stack.Building with
-      value: "{tech_6}"
-    - label: Stack.Primary
-      value: "{language_top} <dim>—</dim> {language_top_pct}% of recent code"
-    - label: Stack.Also
-      value: "{languages_list}"
-
-    - separator: true
-
-    - label: Commits.{year}
-      value: "{commits_ytd} <dim>so far</dim>"
-    - label: Commits.{prev_year}
-      value: "{commits_prev_year}"
-    - label: Commits.All time
-      value: "{commits}"
-    - label: Commits.Per day
-      value: "{per_day}"
-    - label: Commits.Active days
-      value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
-    - label: Commits.Streak
-      value: "{current_streak} days <dim>·</dim> best {longest_streak}"
-
-    # Where the second column starts. Purely a balance knob: delete it and the
-    # split falls back to the nearest separator, which leaves the right column
-    # half empty because Commits is ten of the nineteen rows. Ignored entirely
-    # when the portrait is back on, since that card is one column.
-    - column_break: true
-
-    - label: Commits.Record
-      value: "{busiest_count} in one day <dim>({busiest_date})</dim>"
-    - label: Commits.Busiest day
-      value: "{busiest_weekday}s"
-    - label: Commits.Peak hours
-      value: "{busiest_window}"
-    - label: Commits.Weekends
-      value: "{weekend_pct}% of all commits"
-
-    - separator: true
-
-    - label: Shipped.Pull requests
-      value: "{prs_merged} merged <dim>·</dim> {prs_open} open"
-    - label: Shipped.Issues
-      value: "{issues_opened} opened"
-    - label: Shipped.Repositories
-      value: "{repos} owned <dim>·</dim> {contributed} contributed to"
-    - label: Shipped.Followers
-      value: "{followers}"
-
-    - separator: true
-
     # Deliberately no email. A published address on a high-traffic profile is a
     # scraping target, and LinkedIn already provides a route to make contact.
-    - label: Contact.LinkedIn
+    - label: LinkedIn
       value: linkedin.com/in/scott-davis-fl
+
+    # Detected from dependency manifests, not self-reported.
+    - heading: Stack
+    - label: Building with
+      value: "{tech_6}"
+    - label: Primary
+      value: "{language_top} <dim>·</dim> {language_top_pct}% of recent code"
+    - label: Also
+      value: "{languages_list}"
+
+    # Commits counts the work; this is the shape of it over a year.
+    - heading: Rhythm
+    - label: Active days
+      value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
+    - label: Streak
+      value: "{current_streak} days <dim>·</dim> best {longest_streak}"
+    - label: Record
+      value: "{busiest_count} in one day <dim>({busiest_date})</dim>"
+    - label: Busiest day
+      value: "{busiest_weekday}s"
+    - label: Peak hours
+      value: "{busiest_window}"
+    - label: Weekends
+      value: "{weekend_pct}% of all commits"
+
+    # Right column: the output, and the year of it drawn out. Placed by hand --
+    # the grid is worth several rows, and only this split leaves both columns
+    # the same height.
+    - column_break: true
+
+    - heading: Commits
+    - label: "{year}"
+      value: "{commits_ytd} <dim>so far</dim>"
+    - label: "{prev_year}"
+      value: "{commits_prev_year}"
+    - label: All time
+      value: "{commits}"
+    - label: Per day
+      value: "{per_day}"
+
+    - heading: Shipped
+    - label: Pull requests
+      value: "{prs_merged} merged <dim>·</dim> {prs_open} open"
+    - label: Issues
+      value: "{issues_opened} opened"
+    - label: Repositories
+      value: "{repos} owned <dim>·</dim> {contributed} contributed to"
+
+    # The same contribution grid the streak and active-day figures above are
+    # read out of -- already fetched, so it costs no extra API call.
+    - heading: Last 365 days
+    - heatmap: contributions
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  One SVG is written per theme.  Add a third if you want one; the README's
@@ -208,6 +215,13 @@ themes:
     add: "#3fb950"
     delete: "#f85149"
     rule: "#30363d"
+    heading: "#e6edf3"   # section titles, the brightest text on the card
+    # Contribution squares, quietest first. Hand-picked rather than left to the
+    # automatic blend: orange desaturates to brown at low luminance, and with
+    # 80% of days active the grid needs real separation between the steps or it
+    # reads as one flat block. Swap in the blues from `value` if you prefer --
+    # blue holds its saturation better down here.
+    heat: ["#21262d", "#4d2a08", "#8a4a0d", "#cc7a1f", "#ffa657"]
 
   light:
     output: dist/light_mode.svg
@@ -220,3 +234,5 @@ themes:
     add: "#1a7f37"
     delete: "#cf222e"
     rule: "#d0d7de"
+    heading: "#1f2328"
+    heat: ["#eaeef2", "#ffd7b0", "#f0a05a", "#cc6a14", "#953800"]

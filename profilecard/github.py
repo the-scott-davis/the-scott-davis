@@ -58,6 +58,9 @@ class Stats:
     busiest_count: int = 0
     busiest_date: str = ""
     github_since: str = ""  # year the account was created
+    # The day grid itself, [(iso date, count), ...]. Already paid for -- it is
+    # the same response the streak and active-day figures are read out of.
+    calendar: list = None
 
     prs_merged: int = 0
     prs_open: int = 0

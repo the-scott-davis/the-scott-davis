@@ -38,7 +38,32 @@ A dot in the label renders as a nested key, the way neofetch groups things:
     - label: Languages.Programming     # -> Languages.Programming: ...
 ```
 
-A blank spacer line:
+A section title, set flush left with a rule running from the end of the text to
+the edge of its column:
+
+```yaml
+    - heading: Stack
+```
+
+A heading opens its own section, which is what puts the blank line above it, so
+it is written *instead of* a `separator`, not next to one. The rows under a
+heading should drop the prefix they would otherwise carry: with a `Commits`
+heading above them, `Commits.Per day` is just `Per day`.
+
+Your contribution grid, drawn as squares rather than text:
+
+```yaml
+    - heading: Last 365 days
+    - heatmap: contributions
+```
+
+This costs no extra API call. The day grid is the same response the streak and
+active-day numbers are already read out of. It is a block, not a row: it claims
+as many rows as it needs and widens its column to fit, so the column splitter
+balances around it. Offline (`make build`) it renders at full size in the
+quietest shade, so the layout is the real one even without a token.
+
+A blank spacer line, for a section with no title:
 
 ```yaml
     - separator: true
@@ -50,7 +75,7 @@ And, in a two-column card, an explicit place for the second column to start:
     - column_break: true
 ```
 
-See [Turning the portrait off](#turning-the-portrait-off) — in a one-column card
+See [Turning the portrait off](#turning-the-portrait-off). In a one-column card
 it does nothing at all.
 
 ### Placeholders
@@ -68,7 +93,7 @@ Any `{name}` in a `value` (or in `card.title`, or in a label) is substituted.
 | `{github_since}` | Year the GitHub account was created |
 | anything under `vars:` | Yours |
 
-**Commits** — from the contributions API, the same source as your profile graph.
+**Commits**, from the contributions API, the same source as your profile graph.
 Includes private activity, so these are the real numbers even if your work is not
 public.
 
@@ -81,7 +106,7 @@ public.
 | `{commits_public}` `{commits_private}` | The split |
 | `{contributions}` `{contributions_year}` | All contribution types, not just commits |
 
-**Cadence** — derived from the day-by-day contribution grid.
+**Cadence**, derived from the day-by-day contribution grid.
 
 | Placeholder | Meaning |
 |---|---|
@@ -101,7 +126,7 @@ public.
 | `{contributed}` | Repositories you have contributed to |
 | `{followers}` `{stars}` | |
 
-**Stack** — see [What you build with](#what-you-build-with) for how these are
+**Stack**. See [What you build with](#what-you-build-with) for how these are
 derived and why the defaults filter so aggressively.
 
 | Placeholder | Meaning |
@@ -111,11 +136,11 @@ derived and why the defaults filter so aggressively.
 | `{tech_top}` | The single most widely used |
 | `{language_top}` `{language_top_pct}` | Leading language and its share |
 | `{languages}` | Top 4 with percentages |
-| `{languages_list}` | Names only, **excluding** the leader — pairs with `{language_top}` |
+| `{languages_list}` | Names only, **excluding** the leader, so it pairs with `{language_top}` |
 | `{languages_all}` | Every language, largest first |
 | `{recent_repos}` | Repositories inside the `since_years` window |
 
-**Rhythm** — when you work.
+**Rhythm**, meaning when you work.
 
 | Placeholder | Meaning |
 |---|---|
@@ -126,14 +151,14 @@ derived and why the defaults filter so aggressively.
 | `{busiest_window}` | Peak two-hour window, local time |
 | `{github_age}` | How long the account has existed |
 
-**Lines of code** — only populated when `github.count_lines` is on (see below).
+**Lines of code**, only populated when `github.count_lines` is on (see below).
 
 | Placeholder | Meaning |
 |---|---|
 | `{loc}` `{loc_added}` `{loc_deleted}` | Net, added, deleted |
 
 Numbers arrive pre-formatted with thousands separators. Add your own by adding
-a key to `vars:` — it becomes a placeholder automatically:
+a key to `vars:` and it becomes a placeholder automatically:
 
 ```yaml
 vars:
@@ -181,12 +206,24 @@ themes:
     dim: "#6e7681"     # dot leaders, punctuation, <dim> spans
     add: "#3fb950"
     delete: "#f85149"
-    rule: "#30363d"    # the line under the title
+    rule: "#30363d"    # the line under the title, and beside each heading
+    heading: "#e6edf3" # section titles
+    heat: ["#21262d", "#4d2a08", "#8a4a0d", "#cc7a1f", "#ffa657"]
 ```
+
+`heat` is the contribution grid's five shades, quietest first. Omit it and a
+ramp is blended from `bg` up to `key`, which is fine for most palettes, but
+check it against your own activity before trusting it. Shading is on a square
+root scale, because one outlier day (a 84-commit day here) flattens every
+ordinary week into the quietest shade on a linear one. If most of your days are
+active, the ramp needs real separation between steps or the year reads as one
+flat block; that is why the shipped values are hand-picked rather than blended.
+Orange in particular desaturates to brown at low luminance, where a blue ramp
+would hold up better.
 
 Only `output`, `bg`, and `fg` are required; the rest fall back to `fg`.
 `portrait` joins them whenever `card.show_portrait` is on, which it is by
-default. Add a third theme if you want one — nothing stops you, though the
+default. Add a third theme if you want one. Nothing stops you, though the
 README only references two.
 
 ---
@@ -202,7 +239,7 @@ card:
 ```
 
 The whole card width then goes to the rows, so the layout switches to two
-columns — a single tall column of nineteen rows against a full-width README is
+columns, because a single tall column of nineteen rows against a full-width README is
 mostly empty space. Override the count if you want something else:
 
 ```yaml
@@ -211,8 +248,9 @@ card:
   column_gutter: 4     # blank columns between them
 ```
 
-Columns are split on the `separator` lines, whole sections at a time, at
-whichever boundary makes the tallest column shortest — the card is as tall as
+Columns are split on the section boundaries (every `heading` and every
+`separator` starts one), whole sections at a time, at whichever boundary makes
+the tallest column shortest. The card is as tall as
 its tallest column, so that is the thing worth minimising. Sections are never
 cut in half automatically, which is not always what you want: one section of ten
 rows out of nineteen has no good boundary near the middle, and the right column
@@ -229,7 +267,7 @@ ends up half empty. Put the break where you want it instead:
 ```
 
 An explicit break wins over the automatic split, and every break is ignored when
-the card is one column — so leaving one in the file costs nothing if you turn
+the card is one column, so leaving one in the file costs nothing if you turn
 the portrait back on.
 
 With the portrait off, nothing reads `themes.<name>.portrait` and
@@ -264,12 +302,12 @@ limited palette and writes a small PNG, which the renderer turns into one
 `<path>` per colour. Either way the card stays a self-contained SVG.
 
 The renderer picks its behaviour from the file extension in
-`themes.<name>.portrait` — `.txt` means characters, `.png` means pixels — so a
+`themes.<name>.portrait`: `.txt` means characters, `.png` means pixels, so a
 theme is self-describing and the two can coexist.
 
 ### Choosing between them
 
-Don't guess — measure:
+Don't guess. Measure:
 
 ```bash
 python -m profilecard.portrait --analyze your-shot.jpg
@@ -277,20 +315,20 @@ python -m profilecard.portrait --analyze your-shot.jpg
 
 Characters carry tone and nothing else, so anything that separates by colour but
 not by brightness simply disappears in ASCII, and no amount of extra columns
-brings it back. The tool reports **edge strength** — the mean of the strongest 5%
-of brightness steps inside the subject — and needs 130+ out of 255 for ASCII.
+brings it back. The tool reports **edge strength**, the mean of the strongest 5%
+of brightness steps inside the subject, and needs 130+ out of 255 for ASCII.
 
 It also reports source pixels per character cell. Resolution is almost never the
 constraint: at 72 columns you need roughly 3 px per cell, and any modern camera
 gives you several times that. If a portrait looks soft, the fix is lighting.
 
 The photograph this project started with scores **93**. Its subject's face and
-shirt sit 2 levels apart out of 255 in brightness — 99 apart in colour, all but
-identical in grey — so every ASCII rendering came out a blob, at 45 columns and
+shirt sit 2 levels apart out of 255 in brightness. They are 99 apart in colour
+and all but identical in grey, so every ASCII rendering came out a blob, at 45 columns and
 still at 120. The palm logo scores **151** and renders cleanly.
 
 Shooting specifically for an ASCII portrait is its own skill, and the photo you
-want is emphatically not a good headshot — soft flattering light erases exactly
+want is emphatically not a good headshot. Soft flattering light erases exactly
 the structure characters need. [PORTRAIT-PHOTOS.md](PORTRAIT-PHOTOS.md) covers
 it: lighting setups, what to wear, what to avoid, and a ten-second test you can
 run on your phone before you bother transferring the file.
@@ -311,7 +349,7 @@ configuration are kept in git history for reference.
 | `width` | Art pixels across. Height follows the source aspect ratio unless you set `height` |
 | `crop` | `[left, top, right, bottom]` as 0–1 fractions of the source |
 | `palette` | Colours to quantise to. Fewer reads as flatter, more obviously "pixel art"; more preserves subtle shading |
-| `dither` | Off by default — dithering trades flat regions for perceived colour depth, which fights the look |
+| `dither` | Off by default. Dithering trades flat regions for perceived colour depth, which fights the look |
 | `saturation` / `contrast` / `brightness` | Applied after downsampling, before quantising |
 | `sharpen` | Unsharp mask *before* downsampling. Useful on a soft or slightly out-of-focus source |
 
@@ -319,7 +357,7 @@ Two card-geometry settings control how big it lands on the card:
 
 ```yaml
 card:
-  pixel_size: 6         # SVG pixels per art pixel — 64 x 6 = a 384px-wide portrait
+  pixel_size: 6         # SVG pixels per art pixel, 64 x 6 = a 384px-wide portrait
   portrait_radius: 6    # rounded corners, 0 for square
 ```
 
@@ -330,7 +368,7 @@ then `pixel_size` for how much room it should take next to the text.
 
 ### What actually matters
 
-Crop first, and crop tight — head and shoulders. Everything else is secondary to
+Crop first, and crop tight: head and shoulders. Everything else is secondary to
 getting the face large in the frame.
 
 Then check the file size: `dist/dark_mode.svg` is around 38 KB at the defaults.
@@ -351,16 +389,16 @@ Only relevant under `mode: ascii`.
 | `autocontrast` | Percent clipped off each end of the histogram |
 | `gamma` | `>1` darkens midtones, `<1` brightens them |
 | `black_point` / `white_point` | Manual levels, instead of `autocontrast` |
-| `vignette` / `vignette_power` | Fades the corners — the main tool for making a busy background go away |
+| `vignette` / `vignette_power` | Fades the corners, the main tool for making a busy background go away |
 | `floor` | Anything darker than this becomes empty space |
-| `invert` | For a light card — see below |
+| `invert` | For a light card, see below |
 | `trim` | Drop blank rows and columns from the edges (default on) |
 
 #### Ramps
 
 | Name | Use |
 |---|---|
-| `silhouette` | `" .:-+*#%@"` — logos and flat high-contrast art |
+| `silhouette` | `" .:-+*#%@"`, for logos and flat high-contrast art |
 | `measured` | 24 levels, evenly spaced in *measured* ink coverage |
 | `measured32` | the same, at 32 levels |
 | `blocks` `shades` | block-drawing characters, chunky |
@@ -373,7 +411,7 @@ bunch up in the midtones; these step evenly. They are baked in as constants
 rather than measured at build time, so a fork does not need a font file.
 
 For a near-binary source, pair `silhouette` with a narrow `black_point` /
-`white_point` window — that acts as a soft threshold, sending the subject solid
+`white_point` window. That acts as a soft threshold, sending the subject solid
 and the background empty while letting only anti-aliased edges land in between.
 That is how the shipped palm logo is configured.
 
@@ -381,7 +419,7 @@ That is how the shipped palm logo is configured.
 
 A busy background is the hard case here, and `vignette` plus `floor` is how you
 deal with it: the vignette pushes the corners down, the floor snaps whatever is
-left of them to nothing. Work in order — crop, `sharpen`, contrast, then
+left of them to nothing. Work in order: crop, `sharpen`, contrast, then
 background knockout last.
 
 For a light card, reversing the ramp is **not** enough: you want dark ink where
@@ -402,7 +440,7 @@ portrait:
       ink_floor: 0.10
 ```
 
-Pixel mode sidesteps the problem entirely — colour reads on either background,
+Pixel mode sidesteps the problem entirely, since colour reads on either background,
 so both themes share one portrait file.
 
 ---
@@ -423,12 +461,18 @@ card:
   corner_radius: 14
   gutter: 4              # blank columns between portrait and rows
   column_gutter: 4       # blank columns between two field columns
+  title_gap: 10          # extra pixels between the title and the first row
+  heat_cell: 7           # side of one contribution square
+  heat_gap: 2            # space between squares
   min_dots: 2            # shortest dot leader
 ```
 
+`title_gap` is space, not a line. The rule under the title stays tucked under
+the title's descenders; the gap is what pushes the first row clear of the pair.
+
 The portrait has its own type metrics because it is texture, not something
 anyone reads. Setting it smaller than the field text is what buys the column
-count an ASCII portrait needs — the same card width holds 45 columns at 16px but
+count an ASCII portrait needs. The same card width holds 45 columns at 16px but
 72 at 10px, and columns are the only source of detail characters have. Set
 `portrait_font_size` alone and the leading scales with it; the `portrait_*`
 values fall back to the field-text ones when omitted.
@@ -460,7 +504,7 @@ Two separate problems, two separate mechanisms.
 **GitHub's language stats measure bytes, and have no sense of time.** One large
 legacy service outranks every current project indefinitely. On the account this
 was built for, two C# repositories last touched in mid-2025 held 65 MB against
-8 MB for everything else, so C# read as 66% of the profile — for someone who had
+8 MB for everything else, so C# read as 66% of the profile, for someone who had
 written nothing but TypeScript for two years. Setting `since_years: 1` flipped it
 to TypeScript. Use `exclude_languages` for whatever still crowds in: markup
 inflates badly against real code, and dead stacks are worth dropping outright.
@@ -476,14 +520,14 @@ one**. Breadth is a better signal than byte volume, and one enormous repository
 cannot distort it.
 
 Add your own signatures by editing `DEPENDENCY_SIGNALS` and `FILE_SIGNALS` in
-that module. A key ending in `/` matches a whole npm scope — `@aws-sdk/` catches
-every client package — and anything else is an exact match.
+that module. A key ending in `/` matches a whole npm scope, so `@aws-sdk/` catches
+every client package. Anything else is an exact match.
 
 ### Hours
 
 `sample_repos` sets how many recently-pushed repositories to read commit
 timestamps from, for `{busiest_hour}` and `{busiest_window}`. It is a sample,
-not a census — a full history walk is the expensive thing this project avoids —
+not a census. A full history walk is the expensive thing this project avoids, and
 and a few hundred recent commits is plenty to show when someone works. Set it to
 `0` to skip the extra queries.
 
@@ -510,7 +554,7 @@ counting is not like the rest: there is no aggregate endpoint for it, so it mean
 walking every commit of every repository, a hundred at a time.
 
 On a small account that is fine. On a large one it is minutes and thousands of
-API calls — during development, a walk of 31 repositories ran for over fifteen
+API calls. During development, a walk of 31 repositories ran for over fifteen
 minutes without finishing. So `count_lines` defaults to `false`.
 
 The number is also weaker than it looks. It counts added minus deleted lines

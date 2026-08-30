@@ -132,6 +132,9 @@ class StackConfig:
         )
 
 
+HEATMAP_SOURCES = {"contributions"}
+
+
 @dataclass
 class Field:
     """One line of the card."""
@@ -139,6 +142,12 @@ class Field:
     label: str | None = None
     value: str = ""
     separator: bool = False
+    # A section title. Implies the break a `separator` would have made, so the
+    # two are not written together.
+    heading: str | None = None
+    # A block of contribution squares rather than a row of text. Names the data
+    # it draws; only "contributions" exists so far.
+    heatmap: str | None = None
     # Forces the next field into the following column. Ignored in one-column
     # layouts, so leaving one in place costs nothing when the portrait is back on.
     column_break: bool = False
@@ -159,15 +168,53 @@ class Field:
             return cls(separator=True, enabled=bool(data.get("enabled", True)))
         if data.get("column_break"):
             return cls(column_break=True, enabled=bool(data.get("enabled", True)))
+        if data.get("heading") is not None:
+            return cls(
+                heading=str(data["heading"]), enabled=bool(data.get("enabled", True))
+            )
+        if data.get("heatmap") is not None:
+            source = str(data["heatmap"])
+            if source not in HEATMAP_SOURCES:
+                raise ConfigError(
+                    f"{where}.heatmap: expected one of {sorted(HEATMAP_SOURCES)}, "
+                    f"got {source!r}"
+                )
+            return cls(heatmap=source, enabled=bool(data.get("enabled", True)))
         if "label" not in data:
             raise ConfigError(
-                f"{where}: needs one of 'label', 'separator: true', 'column_break: true'"
+                f"{where}: needs one of 'label', 'heading', 'heatmap', "
+                "'separator: true', 'column_break: true'"
             )
         return cls(
             label=str(data["label"]),
             value="" if data.get("value") is None else str(data["value"]),
             enabled=bool(data.get("enabled", True)),
         )
+
+
+def _blend(a: str, b: str, t: float) -> str:
+    """``a`` toward ``b`` by ``t``, in plain sRGB. Good enough for five shades."""
+    def parts(h: str) -> tuple[int, int, int]:
+        h = h.lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+
+    return "#" + "".join(
+        f"{round(x + (y - x) * t):02x}" for x, y in zip(parts(a), parts(b))
+    )
+
+
+def _heat_ramp(data: dict, where: str, bg: str, accent: str) -> list[str]:
+    """Five shades for the contribution grid, quietest first."""
+    ramp = data.get("heat")
+    if ramp is None:
+        # The empty cell lifts off the background rather than sitting on the
+        # accent, or a blank year reads as a hole in the card.
+        return [_blend(bg, accent, t) for t in (0.10, 0.32, 0.55, 0.78, 1.0)]
+    if not isinstance(ramp, list) or len(ramp) != 5:
+        raise ConfigError(f"{where}.heat: expected a list of 5 colours, quietest first")
+    return [str(c) for c in ramp]
 
 
 @dataclass
@@ -186,6 +233,11 @@ class Theme:
     add: str
     delete: str
     rule: str
+    heading: str
+    # Five shades for the contribution grid, quietest first. Defaults to a blend
+    # from the background up to `key`, so a fork gets a card-coloured grid
+    # without configuring one.
+    heat: list[str] = field(default_factory=list)
 
     @classmethod
     def parse(cls, name: str, data: dict) -> "Theme":
@@ -205,6 +257,9 @@ class Theme:
             add=str(data.get("add", fg)),
             delete=str(data.get("delete", fg)),
             rule=str(data.get("rule", dim)),
+            heading=str(data.get("heading", fg)),
+            heat=_heat_ramp(data, where, str(_require(data, "bg", where)),
+                            str(data.get("key", fg))),
         )
 
 
@@ -218,6 +273,11 @@ class CardConfig:
     corner_radius: int = 14
     gutter: int = 4  # blank columns between the portrait and the field list
     column_gutter: int = 4  # blank columns between two field columns
+    # Extra pixels between the title and the first row. The rule under the title
+    # sits in the middle of it, so the gap is what keeps that rule off both.
+    title_gap: int = 10
+    heat_cell: int = 7  # side of one contribution square
+    heat_gap: int = 2  # space between squares
     min_dots: int = 2
     # The portrait is optional. Turning it off frees the whole width for text,
     # which is why `columns` then defaults to 2 -- a single tall column of rows
@@ -279,6 +339,9 @@ class CardConfig:
             corner_radius=int(data.get("corner_radius", cls.corner_radius)),
             gutter=int(data.get("gutter", cls.gutter)),
             column_gutter=int(data.get("column_gutter", cls.column_gutter)),
+            title_gap=int(data.get("title_gap", cls.title_gap)),
+            heat_cell=int(data.get("heat_cell", cls.heat_cell)),
+            heat_gap=int(data.get("heat_gap", cls.heat_gap)),
             min_dots=int(data.get("min_dots", cls.min_dots)),
             show_portrait=bool(data.get("show_portrait", cls.show_portrait)),
             columns=columns,
