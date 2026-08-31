@@ -15,7 +15,7 @@ text,tspan{white-space:pre;}
 <text x="18" y="33" fill="#24292f">
 <tspan x="18" y="33">Scott Davis <tspan class="dim">@</tspan> the-scott-davis</tspan>
 <tspan x="18" y="69"><tspan class="heading">Profile</tspan></tspan>
-<tspan x="18" y="89"><tspan class="dim">. </tspan><tspan class="key">GitHub age</tspan>:<tspan class="dim"> ..... </tspan>16 years, 0 months, 25 days</tspan>
+<tspan x="18" y="89"><tspan class="dim">. </tspan><tspan class="key">GitHub age</tspan>:<tspan class="dim"> ..... </tspan>16 years, 0 months, 26 days</tspan>
 <tspan x="18" y="109"><tspan class="dim">. </tspan><tspan class="key">LinkedIn</tspan>:<tspan class="dim"> ....... </tspan>linkedin.com/in/scott-davis-fl</tspan>
 <tspan x="18" y="129"></tspan>
 <tspan x="18" y="149"><tspan class="heading">Stack</tspan></tspan>
@@ -24,25 +24,25 @@ text,tspan{white-space:pre;}
 <tspan x="18" y="209"><tspan class="dim">. </tspan><tspan class="key">Also</tspan>:<tspan class="dim"> ........... </tspan>JavaScript, Python, PLpgSQL</tspan>
 <tspan x="18" y="229"></tspan>
 <tspan x="18" y="249"><tspan class="heading">Rhythm</tspan></tspan>
-<tspan x="18" y="269"><tspan class="dim">. </tspan><tspan class="key">Active days</tspan>:<tspan class="dim"> .... </tspan>293 of 365 <tspan class="dim">(80%)</tspan></tspan>
+<tspan x="18" y="269"><tspan class="dim">. </tspan><tspan class="key">Active days</tspan>:<tspan class="dim"> .... </tspan>293 of 366 <tspan class="dim">(80%)</tspan></tspan>
 <tspan x="18" y="289"><tspan class="dim">. </tspan><tspan class="key">Streak</tspan>:<tspan class="dim"> ......... </tspan>30 days <tspan class="dim">·</tspan> best 56</tspan>
 <tspan x="18" y="309"><tspan class="dim">. </tspan><tspan class="key">Record</tspan>:<tspan class="dim"> ......... </tspan>84 in one day <tspan class="dim">(2026-08-24)</tspan></tspan>
 <tspan x="18" y="329"><tspan class="dim">. </tspan><tspan class="key">Busiest day</tspan>:<tspan class="dim"> .... </tspan>Wednesdays</tspan>
 <tspan x="18" y="349"><tspan class="dim">. </tspan><tspan class="key">Peak hours</tspan>:<tspan class="dim"> ..... </tspan>14:00-16:00</tspan>
-<tspan x="18" y="369"><tspan class="dim">. </tspan><tspan class="key">Weekends</tspan>:<tspan class="dim"> ....... </tspan>20% of all commits</tspan>
+<tspan x="18" y="369"><tspan class="dim">. </tspan><tspan class="key">Weekends</tspan>:<tspan class="dim"> ....... </tspan>21% of all commits</tspan>
 </text>
 <line x1="95" y1="64" x2="709" y2="64" stroke="#d0d7de" stroke-width="1"/>
 <line x1="76" y1="144" x2="709" y2="144" stroke="#d0d7de" stroke-width="1"/>
 <line x1="85" y1="244" x2="709" y2="244" stroke="#d0d7de" stroke-width="1"/>
 <text x="748" y="33" fill="#24292f">
 <tspan x="748" y="69"><tspan class="heading">Commits</tspan></tspan>
-<tspan x="748" y="89"><tspan class="dim">. </tspan><tspan class="key">2026</tspan>:<tspan class="dim"> ........... </tspan>3,402 <tspan class="dim">so far</tspan></tspan>
+<tspan x="748" y="89"><tspan class="dim">. </tspan><tspan class="key">2026</tspan>:<tspan class="dim"> ........... </tspan>3,427 <tspan class="dim">so far</tspan></tspan>
 <tspan x="748" y="109"><tspan class="dim">. </tspan><tspan class="key">2025</tspan>:<tspan class="dim"> ........... </tspan>5,004</tspan>
-<tspan x="748" y="129"><tspan class="dim">. </tspan><tspan class="key">All time</tspan>:<tspan class="dim"> ....... </tspan>17,516</tspan>
-<tspan x="748" y="149"><tspan class="dim">. </tspan><tspan class="key">Per day</tspan>:<tspan class="dim"> ........ </tspan>12.7</tspan>
+<tspan x="748" y="129"><tspan class="dim">. </tspan><tspan class="key">All time</tspan>:<tspan class="dim"> ....... </tspan>17,541</tspan>
+<tspan x="748" y="149"><tspan class="dim">. </tspan><tspan class="key">Per day</tspan>:<tspan class="dim"> ........ </tspan>12.8</tspan>
 <tspan x="748" y="169"></tspan>
 <tspan x="748" y="189"><tspan class="heading">Shipped</tspan></tspan>
-<tspan x="748" y="209"><tspan class="dim">. </tspan><tspan class="key">Pull requests</tspan>:<tspan class="dim"> .. </tspan>1,899 merged <tspan class="dim">·</tspan> 20 open</tspan>
+<tspan x="748" y="209"><tspan class="dim">. </tspan><tspan class="key">Pull requests</tspan>:<tspan class="dim"> .. </tspan>1,907 merged <tspan class="dim">·</tspan> 20 open</tspan>
 <tspan x="748" y="229"><tspan class="dim">. </tspan><tspan class="key">Issues</tspan>:<tspan class="dim"> ......... </tspan>597 opened</tspan>
 <tspan x="748" y="249"><tspan class="dim">. </tspan><tspan class="key">Repositories</tspan>:<tspan class="dim"> ... </tspan>26 owned <tspan class="dim">·</tspan> 29 contributed to</tspan>
 <tspan x="748" y="269"></tspan>
@@ -417,7 +417,8 @@ text,tspan{white-space:pre;}
 <rect x="459" y="36" width="7" height="7" rx="1" fill="#f0a05a"/>
 <rect x="459" y="45" width="7" height="7" rx="1" fill="#953800"/>
 <rect x="459" y="54" width="7" height="7" rx="1" fill="#cc6a14"/>
-<rect x="468" y="0" width="7" height="7" rx="1" fill="#f0a05a"/>
+<rect x="468" y="0" width="7" height="7" rx="1" fill="#cc6a14"/>
+<rect x="468" y="9" width="7" height="7" rx="1" fill="#eaeef2"/>
 </g>
 <line x1="825" y1="64" x2="1228" y2="64" stroke="#d0d7de" stroke-width="1"/>
 <line x1="825" y1="184" x2="1228" y2="184" stroke="#d0d7de" stroke-width="1"/>
