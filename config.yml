@@ -25,6 +25,7 @@ github:
 # ──────────────────────────────────────────────────────────────────────────────
 vars:
   name: Scott Davis
+  title: Hands-on Engineering Leader
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  What you build with.
@@ -46,6 +47,11 @@ stack:
     - Dockerfile
     - Shell
     - Makefile            # build plumbing, not something anyone writes in
+    # 594 bytes in one repo, all of it backend/alembic/script.py.mako -- the
+    # stencil `alembic init` drops in to stamp out migrations. Nobody wrote it,
+    # and at 0.002% of all code it was still placing fifth, because fifth place
+    # is whatever survives this list.
+    - Mako
     - "C#"                # must be quoted -- a bare # starts a YAML comment
     - TSQL
     - PHP
@@ -220,17 +226,20 @@ card:
 #  Regenerate:  make banner
 # ──────────────────────────────────────────────────────────────────────────────
 banner:
-  # Off while the format is still being worked out. Off means nothing renders
-  # and nothing is written, so no half-finished cover photo ends up committed
-  # to a public repository by the nightly rebuild. Everything below is still
-  # parsed and validated, so this cannot rot while it is switched off.
-  # Set to true, run `make fetch`, and upload dist/linkedin_banner.png.
-  enabled: false
+  # The format is settled, so this is on: every fetch now writes
+  # dist/linkedin_banner.png, which is the file to upload. Set it to false
+  # while reworking the layout and nothing renders or gets committed.
+  enabled: true
 
   output: dist/linkedin_banner.svg
   png: dist/linkedin_banner.png
   theme: dark            # a banner is one baked image; it cannot follow the reader
   safe_width: 950
+  # Both stack rows are lists too long for one line. Wrapping them onto
+  # continuation rows spends height, which this canvas has, instead of width,
+  # which it does not -- and that is what keeps the type at 20px. Unwrapped,
+  # the same content only fits at 15px.
+  wrap_cols: 42
   font_size: 20
   line_height: 27
   # One dot rather than the card's two. It buys two characters across the two
@@ -240,13 +249,14 @@ banner:
   headline_font_size: 26
   headline_gap: 18
 
-  # The stack lives in the header rather than in a row, because the header is
-  # the one place with room: the bottom-left corner belongs to the profile
-  # photo, and the left column has to stop above it.
   # <heading> is the theme's brightest text; plain fg read as another body row.
-  headline: "<heading>{tech_5}</heading>"
-  subhead: "{language_top} · {language_top_pct}% of recent code"
-  link: "github.com/{username}"
+  headline: "<heading>{title}</heading>"
+  # The link sits directly under the headline rather than in `link:`, which
+  # right-aligns to the block edge -- against a short subhead that left a wide
+  # empty channel across the middle of the header. Stacked, there is no gap to
+  # explain away.
+  subhead: "github.com/{username}"
+  link: ""
 
   fields:
     # The left column is deliberately the short one. Its rows would otherwise
@@ -265,7 +275,19 @@ banner:
     - column_break: true
 
     # The right column is clear of the photo at any height, so the long
-    # sections go here.
+    # sections go here. Stack leads: it is what the audience here reads for,
+    # and the top of a column is the part that survives every crop.
+    - heading: Stack
+    # Names, not percentages. A language percentage is a share of BYTES in
+    # repositories this account is attached to -- not a claim about skill, and
+    # not comparable to the technology figures, which count repositories. Two
+    # unrelated denominators side by side read as one scale.
+    - label: Primary
+      value: "{languages_5}"
+    # Everything detected that is not already named above, so nothing repeats.
+    - label: Other
+      value: "{tech_other_5}"
+
     - heading: Commits
     - label: All time
       value: "{commits}"
@@ -275,14 +297,6 @@ banner:
       value: "{commits_prev_year}"
     - label: Per day
       value: "{per_day}"
-
-    - heading: Shipped
-    - label: Pull requests
-      value: "{prs_merged} merged"
-    - label: Issues
-      value: "{issues_opened} opened"
-    - label: Repos
-      value: "{repos} owned <dim>·</dim> {contributed} joined"
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  One SVG is written per theme.  Add a third if you want one; the README's

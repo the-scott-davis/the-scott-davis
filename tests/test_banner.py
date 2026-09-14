@@ -84,6 +84,35 @@ class TestWarnings:
         assert not any("profile photo" in w for w in box["warnings"])
 
 
+class TestWrapping:
+    LONG = [
+        Field(heading="Stack"),
+        Field(label="Primary", value="Python, TypeScript, JavaScript, PLpgSQL, Mako"),
+    ]
+
+    def test_wrapping_keeps_the_column_inside_its_cap(self):
+        box = layout(banner(fields=self.LONG, columns=1, wrap_cols=30), VALUES)
+        assert box["col_widths"][0] <= 30
+
+    def test_wrapping_trades_width_for_height(self):
+        wide = layout(banner(fields=self.LONG, columns=1), VALUES)
+        tall = layout(banner(fields=self.LONG, columns=1, wrap_cols=30), VALUES)
+        assert tall["block_w"] < wide["block_w"]
+        assert tall["block_h"] > wide["block_h"]
+
+    def test_continuation_rows_are_indented_to_the_value(self):
+        box = layout(banner(fields=self.LONG, columns=1, wrap_cols=30), VALUES)
+        rows = box["columns"][0]
+        # Row 0 is the heading, row 1 opens the value, row 2 continues it.
+        assert rows[2].runs[0].text.strip() == ""
+        assert len(rows[2].runs[0].text) > 2  # indented past the ". " rail
+
+    def test_no_wrap_cols_leaves_one_row_per_field(self):
+        # What the card passes. Its layout must not change.
+        box = layout(banner(fields=self.LONG, columns=1), VALUES)
+        assert len(box["columns"][0]) == 2
+
+
 class TestConfig:
     def test_char_width_defaults_to_the_monospace_advance(self):
         assert BannerConfig(font_size=20).char_width == 12.0

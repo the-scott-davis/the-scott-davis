@@ -212,6 +212,12 @@ OPTIONAL_DEFAULTS = {
     "tech_4": UNKNOWN,
     "tech_5": UNKNOWN,
     "tech_6": UNKNOWN,
+    **{f"languages_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
+    **{f"languages_from_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
+    **{f"tech_other_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
+    **{f"tech_other_from_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
+    **{f"tech_repo_pct_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
+    **{f"tech_repo_count_{n}": UNKNOWN for n in (2, 3, 4, 5, 6)},
 }
 
 
@@ -251,6 +257,13 @@ def to_values(cfg: Config, stats: Stats, github_name: str | None = None) -> dict
 
     langs = stats.languages or []
     if langs:
+        # Names only, no percentages. A percentage here is a share of BYTES in
+        # repositories you are attached to, which is not a claim about skill --
+        # and next to the technology counts, which share no denominator with
+        # it, two unrelated scales end up looking like one.
+        for n in (2, 3, 4, 5, 6):
+            values[f"languages_{n}"] = ", ".join(name for name, _ in langs[:n]) or UNKNOWN
+            values[f"languages_from_{n}"] = ", ".join(name for name, _ in langs[n:]) or UNKNOWN
         values["languages"] = ", ".join(f"{n} {p:.0f}%" for n, p in langs[:4])
     # Skips the leader, so a card can show "Primary: X" and "Also: ..." without
     # naming X twice.
@@ -265,6 +278,27 @@ def to_values(cfg: Config, stats: Stats, github_name: str | None = None) -> dict
         values["tech_top"] = tech[0][0]
         for n in (3, 4, 5, 6):
             values[f"tech_{n}"] = ", ".join(name for name, _ in tech[:n])
+        # Technologies are ranked by how many REPOSITORIES use them, not by
+        # bytes, so their share has a different denominator to the language
+        # percentages above. The denominator is spelled out in the key name
+        # because a bare "Node.js 86%" next to "Python 45%" reads as one scale
+        # when it is two: breadth of use against volume of text.
+        # Everything detected that is not already named as a language, so a
+        # "languages" row and a "tools" row below it never repeat a word.
+        lang_names = {n.lower() for n, _ in (stats.languages or [])}
+        other = [(n, c) for n, c in tech if n.lower() not in lang_names]
+        for n in (2, 3, 4, 5, 6):
+            values[f"tech_other_{n}"] = ", ".join(name for name, _ in other[:n]) or UNKNOWN
+            values[f"tech_other_from_{n}"] = ", ".join(name for name, _ in other[n:]) or UNKNOWN
+
+        seen = stats.recent_repos or 1
+        for n in (2, 3, 4, 5, 6):
+            values[f"tech_repo_pct_{n}"] = ", ".join(
+                f"{name} {count / seen * 100:.0f}%" for name, count in tech[:n]
+            )
+            values[f"tech_repo_count_{n}"] = ", ".join(
+                f"{name} {count}/{seen}" for name, count in tech[:n]
+            )
     values["recent_repos"] = f"{stats.recent_repos:,}"
 
     if stats.github_created:

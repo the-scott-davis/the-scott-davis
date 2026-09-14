@@ -167,6 +167,12 @@ self-contained SVG with no linked or embedded image.
    And note that `make build` writes a banner of zeros, exactly as it writes a
    card of zeros -- use it for layout, and `make fetch` before you upload.
 
+   `banner.wrap_cols` is the lever that matters when content will not fit.
+   Height is spare on this canvas and width is not, so wrapping a long value
+   onto continuation rows is nearly free while letting it run costs type size
+   everywhere. Reach for it before reducing `font_size`. It is opt-in: the card
+   passes no wrap width and its layout is unchanged.
+
    `banner.enabled: false` switches the whole thing off -- nothing renders and
    nothing is written -- while still validating the section, so a format under
    revision leaves no artifact for `nightly.sh` to `git add dist` and publish.
