@@ -394,11 +394,21 @@ class BannerConfig:
     line_height: int = 28
     char_width: float | None = None
     columns: int = 2
+    # Caps a column at this many characters, wrapping long values onto
+    # continuation rows. Height is the resource this canvas has spare and width
+    # is the one it does not, so wrapping a list rather than letting it run is
+    # what buys the type size back. None leaves values on one row.
+    wrap_cols: int | None = None
     column_gutter: int = 4
     min_dots: int = 2
     # Nudges the block off centre, to buy clearance from the profile photo in
     # the bottom-left corner at the cost of symmetry under the mobile crop.
     offset_x: int = 0
+    # The vertical equivalent. A block is centred on the canvas, so an
+    # asymmetric one -- a short left column against a long right one -- sits
+    # lower than its left column can afford, because the photo's top edge does
+    # not move when the block shrinks. Negative lifts it.
+    offset_y: int = 0
     fields: list[Field] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -452,8 +462,8 @@ class BannerConfig:
             "output", "png", "theme", "width", "height", "scale", "safe_width",
             "headline", "subhead", "link", "headline_font_size", "headline_line_height",
             "headline_char_width", "headline_gap", "font_size", "line_height",
-            "char_width", "columns", "column_gutter", "min_dots", "offset_x",
-            "enabled", "fields",
+            "char_width", "columns", "wrap_cols", "column_gutter", "min_dots", "offset_x",
+            "offset_y", "enabled", "fields",
         }
         unknown = set(data) - known
         if unknown:
@@ -482,9 +492,11 @@ class BannerConfig:
             line_height=int(data.get("line_height", cls.line_height)),
             char_width=_opt_float(data.get("char_width")),
             columns=columns,
+            wrap_cols=_opt_int(data.get("wrap_cols")),
             column_gutter=int(data.get("column_gutter", cls.column_gutter)),
             min_dots=int(data.get("min_dots", cls.min_dots)),
             offset_x=int(data.get("offset_x", cls.offset_x)),
+            offset_y=int(data.get("offset_y", cls.offset_y)),
             fields=[f for f in fields if f.enabled],
         )
 

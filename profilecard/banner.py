@@ -58,7 +58,7 @@ def layout(banner: BannerConfig, values: dict[str, str]) -> dict:
     # build_columns also returns the card title, which a banner does not have:
     # as_card() blanks it so the headline below is measured at its own, larger
     # size instead of being folded into the body's column widths.
-    _, columns = build_columns(card, values)
+    _, columns = build_columns(card, values, banner.wrap_cols)
 
     cw, lh = banner.char_width, banner.line_height
     col_widths = [
@@ -96,7 +96,7 @@ def layout(banner: BannerConfig, values: dict[str, str]) -> dict:
         )
 
     x0 = round((banner.width - block_w) / 2) + banner.offset_x
-    y0 = round((banner.height - block_h) / 2)
+    y0 = round((banner.height - block_h) / 2) + banner.offset_y
 
     warnings: list[str] = []
     if block_w > banner.safe_width:

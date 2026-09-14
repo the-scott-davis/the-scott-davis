@@ -138,7 +138,20 @@ derived and why the defaults filter so aggressively.
 | `{languages}` | Top 4 with percentages |
 | `{languages_list}` | Names only, **excluding** the leader, so it pairs with `{language_top}` |
 | `{languages_all}` | Every language, largest first |
+| `{languages_2}` … `{languages_6}` | Top N language **names**, no percentages |
+| `{languages_from_2}` … `{languages_from_6}` | The languages after the top N, so a second row continues the first |
+| `{tech_other_2}` … `{tech_other_6}` | Top N technologies **excluding anything already named as a language**, so a languages row and a tools row never repeat a word |
+| `{tech_other_from_2}` … | The technologies after those |
+| `{tech_repo_pct_2}` … `{tech_repo_count_2}` … | Each technology with its share of repositories, as a percentage or as `8/14` |
 | `{recent_repos}` | Repositories inside the `since_years` window |
+
+> **The two kinds of number here do not share a denominator.** A language
+> percentage is a share of *bytes* and the set sums to 100. A technology figure
+> counts *repositories*, and one repository can use Node.js, React and Postgres
+> at once -- so those overlap and sum to well over 100. `Node.js 57%` means "in
+> 8 of 14 repos", not "57% of the code". Put the two side by side and they read
+> as one scale when they are two; that is why the key names spell out
+> `_repo_pct_`, and why the shipped banner uses names only.
 
 **Rhythm**, meaning when you work.
 
@@ -530,6 +543,20 @@ canvas. The header above the rule is three separate strings: `headline` at
 `headline_font_size`, and `subhead` and `link` sharing the line below it at the
 body size, subhead left and link right.
 
+### Wrapping
+
+`wrap_cols` caps a column at that many characters and wraps anything longer onto
+continuation rows, indented to the value gutter so the column still reads as one
+block. Unset -- what the card uses -- every value stays on one row however wide
+it comes out.
+
+It matters more than it sounds, because **height is the resource this canvas has
+spare and width is the one it does not**. A five-item list on one row forces the
+whole banner wider, and past `safe_width` the only remedy is smaller type. The
+same list wrapped over two short rows costs a row nobody misses. On the shipped
+banner that trade is five font points: five languages and five tools fit at 20px
+wrapped, and need 15px unwrapped.
+
 ### The two things that will bite you
 
 **LinkedIn crops the sides on mobile**, to roughly the middle 60% of the width.
@@ -557,6 +584,8 @@ across 912px. Adding a row is cheap. Lengthening one is not.
 | Key | Default | What it does |
 |---|---|---|
 | `enabled` | `true` | `false` renders and writes nothing, while still validating the section |
+| `wrap_cols` | unset | Cap a column at N characters, wrapping long values onto continuation rows |
+| `offset_y` | `0` | Nudges the block up or down off centre |
 | `output` / `png` | `dist/linkedin_banner.*` | Where to write. Set `png: ""` to skip rasterising |
 | `theme` | `dark` | Which theme's palette. A banner is one baked image; it cannot follow the reader |
 | `width` / `height` | `1584` / `396` | The canvas. LinkedIn's personal-profile cover size |

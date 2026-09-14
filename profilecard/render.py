@@ -137,6 +137,62 @@ def _leader(width: int) -> str:
     return " " + "." * (width - 2) + " "
 
 
+def wrap_runs(runs: list[Run], width: int) -> list[list[Run]]:
+    """Greedy word wrap over styled runs, preserving each run's style.
+
+    Runs are wrapped rather than plain text because a value may carry markup:
+    ``{repos} <dim>owned</dim>`` has to keep its colour across a line break,
+    and splitting the string first would lose which half was dim.
+
+    Words longer than ``width`` are left to overhang rather than hyphenated --
+    a broken identifier is harder to read than a slightly wide line.
+    """
+    if width < 1:
+        return [runs]
+
+    words: list[tuple[str, str | None]] = []
+    for run in runs:
+        parts = run.text.split(" ")
+        for i, part in enumerate(parts):
+            if i:
+                words.append((" ", run.style))
+            if part:
+                words.append((part, run.style))
+
+    lines: list[list[tuple[str, str | None]]] = []
+    current: list[tuple[str, str | None]] = []
+    length = 0
+    for text, style in words:
+        if text == " ":
+            if current:  # never open a line with a space
+                current.append((text, style))
+                length += 1
+            continue
+        if current and length + len(text) > width:
+            while current and current[-1][0] == " ":  # no trailing space
+                current.pop()
+                length -= 1
+            lines.append(current)
+            current, length = [], 0
+        current.append((text, style))
+        length += len(text)
+    if current:
+        lines.append(current)
+
+    # Adjacent words of the same style become one run again, so the SVG does
+    # not gain a <tspan> per word.
+    out: list[list[Run]] = []
+    for line in lines:
+        merged: list[Run] = []
+        for text, style in line:
+            if merged and merged[-1].style == style:
+                merged[-1] = Run(merged[-1].text + text, style)
+            else:
+                merged.append(Run(text, style))
+        out.append(merged)
+    return out or [[Run("", None)]]
+
+
 @dataclass
 class Entry:
     """One row, expanded but not yet aligned into a column.
@@ -292,8 +348,16 @@ def _split(groups: list[list[Entry]], forced: set[int], columns: int) -> list[li
     return [groups[a:b] for a, b in zip(cuts, cuts[1:])]
 
 
-def _column_lines(groups: list[list[Entry]], card: CardConfig) -> list[Line]:
-    """Align one column's values into a single dot-leadered column."""
+def _column_lines(
+    groups: list[list[Entry]], card: CardConfig, wrap_cols: int | None = None
+) -> list[Line]:
+    """Align one column's values into a single dot-leadered column.
+
+    ``wrap_cols`` caps the column at that many characters, wrapping long values
+    onto continuation rows indented to the value gutter.  ``None`` -- what the
+    card passes -- is the original behaviour exactly: one row per field, however
+    wide it comes out.
+    """
     label_width = max(
         (visible_length(e.label) for g in groups for e in g if e.heading is None),
         default=0,
@@ -322,14 +386,23 @@ def _column_lines(groups: list[list[Entry]], card: CardConfig) -> list[Line]:
                 lines.append(Line([Run(entry.heading, "heading")], heading=True))
                 continue
             pad = value_col - visible_length(entry.label)
-            runs = [Run(RAIL, "dim"), *entry.label, Run(_leader(pad), "dim")]
-            runs.extend(entry.value or [Run("", None)])
-            lines.append(Line(runs))
+            head = [Run(RAIL, "dim"), *entry.label, Run(_leader(pad), "dim")]
+            value = entry.value or [Run("", None)]
+            if wrap_cols is None:
+                lines.append(Line([*head, *value]))
+                continue
+            indent = len(RAIL) + value_col
+            chunks = wrap_runs(value, wrap_cols - indent)
+            lines.append(Line([*head, *chunks[0]]))
+            # Continuation rows carry no label and no leader -- just enough
+            # space to land under the value, so the column reads as one block.
+            for chunk in chunks[1:]:
+                lines.append(Line([Run(" " * indent, None), *chunk]))
     return lines
 
 
 def build_columns(
-    card: CardConfig, values: dict[str, str]
+    card: CardConfig, values: dict[str, str], wrap_cols: int | None = None
 ) -> tuple[list[Run], list[list[Line]]]:
     """The title, plus one list of lines per column.
 
@@ -340,7 +413,7 @@ def build_columns(
     title_runs = parse_markup(substitute(card.title, values, "card.title"))
     groups, forced = _expand(card, values)
     split = _split(groups, forced, card.column_count)
-    return title_runs, [_column_lines(g, card) for g in split]
+    return title_runs, [_column_lines(g, card, wrap_cols) for g in split]
 
 
 def build_lines(card: CardConfig, values: dict[str, str]) -> list[Line]:

@@ -5,6 +5,8 @@ import pytest
 from profilecard.config import CardConfig, ConfigError, Field
 from profilecard.render import (
     GRID_DAYS,
+    Run,
+    wrap_runs,
     GRID_WEEKS,
     _grid_cells,
     _grid_rows,
@@ -273,3 +275,46 @@ class TestRamps:
             assert ramp[0] == " ", f"{name} should start with a blank"
             assert len(set(ramp)) == len(ramp), f"{name} has a duplicate character"
             assert len(ramp) >= 2
+
+
+class TestWrapRuns:
+    """Word wrap over styled runs.  Used only by the banner, whose canvas is a
+    fixed width: the card grows instead and passes no wrap width at all."""
+
+    def test_wraps_on_word_boundaries(self):
+        runs = [Run("Python, TypeScript, JavaScript, PLpgSQL", None)]
+        lines = wrap_runs(runs, 20)
+        assert ["".join(r.text for r in line) for line in lines] == [
+            "Python, TypeScript,",
+            "JavaScript, PLpgSQL",
+        ]
+
+    def test_no_line_exceeds_the_width(self):
+        runs = [Run("Node.js, React, Next.js, Postgres, Redis, Tailwind", None)]
+        for line in wrap_runs(runs, 24):
+            assert visible_length(line) <= 24
+
+    def test_styles_survive_a_break(self):
+        # A value like "{repos} <dim>owned</dim>" must not lose its colour on
+        # whichever side of the break it lands.
+        runs = [Run("aaa bbb ", None), Run("ccc ddd", "dim")]
+        lines = wrap_runs(runs, 8)
+        flat = [(r.text, r.style) for line in lines for r in line]
+        assert ("dim") in [style for _, style in flat]
+        assert "".join(t for t, _ in flat).replace(" ", "") == "aaabbbcccddd"
+
+    def test_adjacent_words_merge_back_into_one_run(self):
+        # One <tspan> per line, not one per word.
+        lines = wrap_runs([Run("alpha beta gamma", None)], 40)
+        assert len(lines) == 1 and len(lines[0]) == 1
+
+    def test_a_word_longer_than_the_width_overhangs(self):
+        # Better a wide line than a hyphenated identifier.
+        lines = wrap_runs([Run("supercalifragilistic", None)], 5)
+        assert len(lines) == 1
+
+    def test_no_line_starts_or_ends_with_a_space(self):
+        lines = wrap_runs([Run("one two three four five", None)], 9)
+        for line in lines:
+            text = "".join(r.text for r in line)
+            assert text == text.strip()
