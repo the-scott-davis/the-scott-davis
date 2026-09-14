@@ -90,12 +90,30 @@ make install
 |---|---|
 | `make portrait` | Regenerate the portrait from the photo |
 | `make preview` | Render the portrait to a scratch file, write nothing committed |
-| `make build` | Render the cards from cached stats, no token needed |
-| `make fetch` | Fetch fresh stats from GitHub and render |
+| `make build` | Render the cards and banner from cached stats, no token needed |
+| `make fetch` | Fetch fresh stats and render the cards and banner |
 | `make venv` | Build the virtualenv the scheduled job runs from |
 | `make nightly` | Run the scheduled rebuild by hand |
 | `make check` | Validate `config.yml` |
 | `make test` | Run the tests |
+
+### The LinkedIn banner
+
+`banner:` in `config.yml` builds a 1584x396 cover photo from the same numbers,
+written to `dist/linkedin_banner.png` on every fetch. Upload the PNG, not the
+SVG -- LinkedIn does not accept SVG.
+
+It is not simply the card at a different size, because a profile page does two
+things to it. The app crops to roughly the middle 60% of the width, so the
+block is centred and no wider than `safe_width`. And your profile photo covers
+the bottom-left corner, which is why the short section sits in the left column
+and the long ones are stacked on the right: the left column stops above the
+photo, and the photo fills the gap. Both properties are checked on every
+render, and a change that breaks one prints a warning saying by how much.
+
+Upload it after a `make fetch`, not a `make build`. `make build` has no commit
+counts to replay offline, so it writes a banner full of zeros -- fine for
+checking a layout, not for your profile.
 
 ### Working on it with an AI agent
 

@@ -3,6 +3,7 @@
     python -m profilecard --offline    # render layout from cache, no token needed
     python -m profilecard              # fetch fresh stats and render
     python -m profilecard --check      # validate config.yml and exit
+    python -m profilecard --offline --no-png   # skip rasterising the banner
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import argparse
 import sys
 import time
 
+from . import banner as banner_mod
 from .config import Config, ConfigError
 from .github import Client, GitHubError, token_from_env
 from .render import render_all
@@ -27,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
         "(how you preview layout changes without a token)",
     )
     p.add_argument("--check", action="store_true", help="validate config.yml and exit")
+    p.add_argument(
+        "--no-png",
+        action="store_true",
+        help="write the banner SVG but skip rasterising it, which needs a browser",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p
 
@@ -61,6 +68,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         values = to_values(cfg, stats, github_name)
         written = render_all(cfg, values, stats.calendar)
+        if cfg.banner:
+            written += banner_mod.write(
+                cfg.banner, cfg.banner_theme(), values, png=not args.no_png
+            )
     except ConfigError as exc:
         print(f"config error: {exc}", file=sys.stderr)
         return 2

@@ -200,6 +200,91 @@ card:
     - heatmap: contributions
 
 # ──────────────────────────────────────────────────────────────────────────────
+#  The LinkedIn cover photo.  Same stats, same placeholders, same markup -- but
+#  a fixed 1584x396 canvas instead of one that grows to fit, so content that
+#  does not fit is an error rather than a card with its edge cut off.
+#
+#  Three numbers below are not arbitrary, and changing one without the others
+#  will put text where nobody can read it:
+#
+#    safe_width  LinkedIn's app crops to roughly the middle 60% of the width.
+#                Anything wider than this is simply not on screen on a phone.
+#    offset_x    The profile photo covers the bottom-left corner, out to about
+#                x=357.  Nudging the block right by 20px clears it and lands
+#                the right edge exactly on the mobile crop -- the only window
+#                that satisfies both is 910px wide, and this is it.
+#    font_size   Larger than the card's 16px because LinkedIn shows the banner
+#                at roughly half these dimensions.  Width is what limits it:
+#                70 characters into 910px is 13px per character, so 21px type.
+#
+#  Regenerate:  make banner
+# ──────────────────────────────────────────────────────────────────────────────
+banner:
+  # Off while the format is still being worked out. Off means nothing renders
+  # and nothing is written, so no half-finished cover photo ends up committed
+  # to a public repository by the nightly rebuild. Everything below is still
+  # parsed and validated, so this cannot rot while it is switched off.
+  # Set to true, run `make fetch`, and upload dist/linkedin_banner.png.
+  enabled: false
+
+  output: dist/linkedin_banner.svg
+  png: dist/linkedin_banner.png
+  theme: dark            # a banner is one baked image; it cannot follow the reader
+  safe_width: 950
+  font_size: 20
+  line_height: 27
+  # One dot rather than the card's two. It buys two characters across the two
+  # columns, which is the difference between clearing the mobile crop and
+  # sitting hard against it.
+  min_dots: 1
+  headline_font_size: 26
+  headline_gap: 18
+
+  # The stack lives in the header rather than in a row, because the header is
+  # the one place with room: the bottom-left corner belongs to the profile
+  # photo, and the left column has to stop above it.
+  # <heading> is the theme's brightest text; plain fg read as another body row.
+  headline: "<heading>{tech_5}</heading>"
+  subhead: "{language_top} · {language_top_pct}% of recent code"
+  link: "github.com/{username}"
+
+  fields:
+    # The left column is deliberately the short one. Its rows would otherwise
+    # run down into the corner the profile photo covers, so it ends at the
+    # fifth -- around y=230, well above the photo's top edge at y=244.
+    - heading: Rhythm
+    - label: Active days
+      value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
+    - label: Streak
+      value: "{current_streak} <dim>·</dim> best {longest_streak}"
+    - label: Peak hours
+      value: "{busiest_window}"
+    - label: Busiest day
+      value: "{busiest_weekday}s"
+
+    - column_break: true
+
+    # The right column is clear of the photo at any height, so the long
+    # sections go here.
+    - heading: Commits
+    - label: All time
+      value: "{commits}"
+    - label: "{year}"
+      value: "{commits_ytd} <dim>so far</dim>"
+    - label: "{prev_year}"
+      value: "{commits_prev_year}"
+    - label: Per day
+      value: "{per_day}"
+
+    - heading: Shipped
+    - label: Pull requests
+      value: "{prs_merged} merged"
+    - label: Issues
+      value: "{issues_opened} opened"
+    - label: Repos
+      value: "{repos} owned <dim>·</dim> {contributed} joined"
+
+# ──────────────────────────────────────────────────────────────────────────────
 #  One SVG is written per theme.  Add a third if you want one; the README's
 #  <picture> element only switches between two, but nothing stops you.
 # ──────────────────────────────────────────────────────────────────────────────
