@@ -46,6 +46,7 @@ self-contained SVG with no linked or embedded image.
 | `profilecard/banner.py` | The LinkedIn cover: same stats, fixed 1584x396 canvas |
 | `profilecard/__main__.py` | CLI entry point (`python -m profilecard`) |
 | `scripts/nightly.sh` | The scheduled rebuild. Reads the token from the keyring at use |
+| `.claude/skills/linkedin-banner/` | `/linkedin-banner`: validates the banner and hands it over to upload |
 | `dist/` | Generated. Committed. Never hand-edit |
 | `dist/linkedin_banner.png` | Generated. The file you actually upload -- LinkedIn takes no SVG |
 | `cache/loc.json` | Generated. Committed. Safe to delete; it rebuilds |
@@ -187,6 +188,13 @@ self-contained SVG with no linked or embedded image.
 
    A theme with `card: false` is palette-only: it defines colours for a banner
    without also writing a third card SVG.
+
+   The upload itself is manual and stays that way. There is no API for a
+   member's cover photo -- the member scopes are read-only for profile fields,
+   and `w_member_social` posts to the feed rather than touching the profile --
+   so the alternative is driving the browser, which LinkedIn's User Agreement
+   prohibits. `/linkedin-banner` does everything either side of the drag-and-
+   drop instead. Do not offer to automate the click.
 
 16. **LinkedIn does not accept SVG.** `banner.py` rasterises with a headless
    Chromium (Brave, Chrome, Chromium or Edge, whichever is installed) at 2x and

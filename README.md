@@ -96,6 +96,7 @@ make install
 | `make nightly` | Run the scheduled rebuild by hand |
 | `make check` | Validate `config.yml` |
 | `make test` | Run the tests |
+| `/linkedin-banner` | Validate the banner and hand it over to upload (Claude Code skill) |
 
 ### The LinkedIn banner
 
@@ -110,6 +111,12 @@ the bottom-left corner, which is why the short section sits in the left column
 and the long ones are stacked on the right: the left column stops above the
 photo, and the photo fills the gap. Both properties are checked on every
 render, and a change that breaks one prints a warning saying by how much.
+
+There is no LinkedIn API for a member's cover photo, so the upload is manual.
+The `/linkedin-banner` skill in this repo does everything either side of it:
+checks the file is the right size and actually current, shows it to you, hands
+over a clickable path, and remembers what you last uploaded so it can tell you
+when re-uploading is not worth the bother.
 
 Upload it after a `make fetch`, not a `make build`. `make build` has no commit
 counts to replay offline, so it writes a banner full of zeros -- fine for
