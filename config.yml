@@ -25,7 +25,6 @@ github:
 # ──────────────────────────────────────────────────────────────────────────────
 vars:
   name: Scott Davis
-  title: Hands-on Engineering Leader
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  What you build with.
@@ -250,12 +249,10 @@ banner:
   headline_gap: 18
 
   # <heading> is the theme's brightest text; plain fg read as another body row.
-  headline: "<heading>{title}</heading>"
-  # The link sits directly under the headline rather than in `link:`, which
-  # right-aligns to the block edge -- against a short subhead that left a wide
-  # empty channel across the middle of the header. Stacked, there is no gap to
-  # explain away.
-  subhead: "github.com/{username}"
+  # Not in `link:`, which right-aligns to the block edge and would leave a wide
+  # empty channel across the header with nothing on the left of it.
+  headline: "<heading>github.com/{username}</heading>"
+  subhead: ""
   link: ""
 
   fields:
