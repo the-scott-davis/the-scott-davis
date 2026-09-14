@@ -18,7 +18,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -105,25 +104,26 @@ def main() -> int:
             print(f"  {line}")
 
     print("\nFRESHNESS")
-    if CONFIG.stat().st_mtime > PNG.stat().st_mtime:
-        print(f"  {WARN}  config.yml changed after the last render")
-        stale.append("config.yml is newer than the image")
-    else:
-        print(f"  {OK}  config.yml predates the render")
+    built = PNG.stat().st_mtime
 
-    # The numbers move every night, so an image built before the last rebuild
-    # is showing figures the card has already moved past.
-    try:
-        head = subprocess.run(
-            ["git", "-C", str(ROOT), "log", "-1", "--format=%ct"],
-            capture_output=True, text=True, check=True).stdout.strip()
-        if head and int(head) > PNG.stat().st_mtime:
-            print(f"  {WARN}  a commit landed after the last render")
-            stale.append("the repo has moved since the image was built")
-        else:
-            print(f"  {OK}  newest commit predates the render")
-    except (subprocess.CalledProcessError, ValueError):
-        pass
+    # Only one signal here is trustworthy, and two earlier attempts were not:
+    #
+    #   watching git HEAD  reported stale the moment ANY commit landed,
+    #                      including the one that added this file
+    #   watching mtimes    `git checkout` rewrites the mtime of every file it
+    #                      touches, so merging a PR makes the renderer look
+    #                      newer than an image it had nothing to do with
+    #
+    # What is left is time. The stats are refetched nightly, so an image built
+    # before the last midnight is showing figures that have since moved. If you
+    # want certainty rather than a heuristic, re-render: `make fetch` is about
+    # thirteen seconds and settles it.
+    midnight = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    if dt.datetime.fromtimestamp(built) < midnight:
+        print(f"  {WARN}  built before the last nightly rebuild")
+        stale.append("the numbers have moved since the image was built")
+    else:
+        print(f"  {OK}  built since the last nightly rebuild")
 
     if STATE.exists():
         prev = json.loads(STATE.read_text())
