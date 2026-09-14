@@ -20,3 +20,6 @@ portrait-preview.png
 # The portrait this builds from (assets/logo.png) is committed; photos are not.
 assets/photo.*
 assets/beach.*
+
+# Local state for the linkedin-banner skill (when you last uploaded).
+.claude/skills/*/last-upload.json
