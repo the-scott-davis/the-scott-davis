@@ -38,9 +38,16 @@ directly, explain the above and let the user decide.
 
    | Exit | Meaning | Do this |
    |---|---|---|
-   | `0` | Ready | Go to step 3 |
-   | `1` | Stale -- config or repo moved since the render | `make fetch`, then re-check |
-   | `2` | Invalid -- wrong size, bad format, too heavy | `make fetch`; if it still fails, the layout is broken, do not hand over a bad file |
+   | `0` | Valid, and built since the last nightly rebuild | Go to step 3 |
+   | `1` | Built before the last nightly rebuild, so the numbers have moved | `make fetch`, then re-check |
+   | `2` | Invalid -- wrong size, bad format, too heavy | `make fetch`; if it still fails the layout is broken, do not hand over a bad file |
+
+   Exit `0` is a heuristic, not a promise: it means nothing has *obviously*
+   gone stale. If the user has edited `config.yml` since the last render, or
+   just wants to be sure, run `make fetch` anyway -- it is about thirteen
+   seconds and removes the question. Do not try to detect that from file
+   mtimes; `git checkout` rewrites them, so a merged PR makes untouched files
+   look modified.
 
    `make fetch` needs a token. This repo's own pattern:
 
