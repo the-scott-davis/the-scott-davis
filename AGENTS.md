@@ -177,6 +177,17 @@ self-contained SVG with no linked or embedded image.
    nothing is written -- while still validating the section, so a format under
    revision leaves no artifact for `nightly.sh` to `git add dist` and publish.
 
+   A `hero:` block switches the banner to free-placed lines and ignores
+   `fields:` -- the layout the shipped banner uses, because rows are what make
+   a banner unreadable at a glance. Its geometry (`x`, `right`, `floor`) is
+   three exclusion zones, not taste: the profile photo plus its white ring
+   reach x=365 on desktop, the phone crop cuts at x=1267, and on a phone the
+   photo covers anything below y=299. Clearing one does not clear the others,
+   and all three are checked on every render.
+
+   A theme with `card: false` is palette-only: it defines colours for a banner
+   without also writing a third card SVG.
+
 16. **LinkedIn does not accept SVG.** `banner.py` rasterises with a headless
    Chromium (Brave, Chrome, Chromium or Edge, whichever is installed) at 2x and
    resamples down, because the image is downscaled again on arrival and text

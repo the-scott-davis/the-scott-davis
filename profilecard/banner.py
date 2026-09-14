@@ -26,7 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .config import BannerConfig, ConfigError, Theme
+from .config import HERO_STYLES, BannerConfig, ConfigError, HeroConfig, Theme
 from .render import (
     STYLE_TAGS,
     _runs_to_tspans,
@@ -133,8 +133,93 @@ def layout(banner: BannerConfig, values: dict[str, str]) -> dict:
     }
 
 
+# The photo's white ring overruns the photo itself, and the phone crop moves
+# the photo right and down relative to these coordinates. Both boxes matter:
+# clearing one does not clear the other.
+AVATAR_RING_X = 365      # desktop: photo + ring reach this far right
+MOBILE_PHOTO_Y = 299     # phone: below this the photo is in the way
+
+
+def layout_hero(hero: HeroConfig, values: dict[str, str]) -> dict:
+    """Stack the hero lines and report anything that will not survive a crop.
+
+    Baselines are computed by stacking rather than written down, so changing a
+    size does not silently invalidate every y below it.
+    """
+    placed: list[tuple[int, list, int, str]] = []
+    warnings: list[str] = []
+    y = hero.top
+    for i, line in enumerate(hero.lines):
+        runs = parse_markup(substitute(line.text, values, f"banner.hero.lines[{i}]"))
+        y += line.gap + line.size
+        placed.append((y, runs, line.size, line.style))
+
+        # A line has to END before the phone crop, not merely start after the
+        # photo. Measured, because the text is data and grows on its own.
+        width = round(visible_length(runs) * line.size * 0.6)
+        if hero.x + width > hero.right:
+            over = hero.x + width - hero.right
+            warnings.append(
+                f"banner.hero.lines[{i}]: runs {over}px past the phone crop at "
+                f"x={hero.right} -- shorten it, or drop it to "
+                f"{int((hero.right - hero.x) / (visible_length(runs) * 0.6))}px"
+            )
+    if hero.x < AVATAR_RING_X:
+        warnings.append(
+            f"banner.hero.x={hero.x} is inside the profile photo's ring, which "
+            f"reaches x={AVATAR_RING_X} on desktop"
+        )
+    if placed and placed[-1][0] > hero.floor:
+        warnings.append(
+            f"banner.hero: the last baseline is y={placed[-1][0]}, below the "
+            f"floor at y={hero.floor} -- on a phone the profile photo covers it"
+        )
+    if placed and placed[-1][0] > MOBILE_PHOTO_Y:
+        warnings.append(
+            f"banner.hero: text reaches y={placed[-1][0]}; the phone's profile "
+            f"photo starts at y={MOBILE_PHOTO_Y}"
+        )
+    return {"placed": placed, "warnings": warnings}
+
+
+def render_hero(banner: BannerConfig, theme: Theme, values: dict[str, str]):
+    """A hero banner: a few free-placed lines, no columns."""
+    box = layout_hero(banner.hero, values)
+    classes = {t: t for t in STYLE_TAGS}
+    parts = [
+        "<?xml version='1.0' encoding='UTF-8'?>",
+        f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'width="{banner.width}px" height="{banner.height}px" '
+        f'viewBox="0 0 {banner.width} {banner.height}" '
+        f"font-family=\"ConsolasFallback,'DejaVu Sans Mono',Menlo,Consolas,monospace\">",
+        f"<title>{xml_escape(values.get('name', values['username']))}</title>",
+        "<style>",
+        "@font-face{src:local('Consolas');font-family:'ConsolasFallback';"
+        "font-display:swap;size-adjust:109%;}",
+        f".key{{fill:{theme.key};}}",
+        f".value{{fill:{theme.value};}}",
+        f".dim{{fill:{theme.dim};}}",
+        f".add{{fill:{theme.add};}}",
+        f".del{{fill:{theme.delete};}}",
+        f".heading{{fill:{theme.heading};}}",
+        "text,tspan{white-space:pre;}",
+        "</style>",
+        f'<rect width="{banner.width}" height="{banner.height}" fill="{theme.bg}"/>',
+    ]
+    for y, runs, size, style in box["placed"]:
+        colour = getattr(theme, HERO_STYLES[style])
+        parts.append(
+            f'<text x="{banner.hero.x}" y="{y}" font-size="{size}px" fill="{colour}">'
+            f"{_runs_to_tspans(runs, classes)}</text>"
+        )
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n", box["warnings"]
+
+
 def render(banner: BannerConfig, theme: Theme, values: dict[str, str]) -> tuple[str, list[str]]:
     """The banner SVG, plus any advisory warnings about where it will be cropped."""
+    if banner.hero:
+        return render_hero(banner, theme, values)
     box = layout(banner, values)
     cw, lh = banner.char_width, banner.line_height
     x0, y0 = box["x0"], box["y0"]
