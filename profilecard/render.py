@@ -627,6 +627,8 @@ def render_all(
 ) -> list[Path]:
     written = []
     for theme in cfg.themes:
+        if not theme.card:  # palette-only, e.g. one a banner borrows
+            continue
         svg = render_theme(cfg, theme, values, calendar)
         out = Path(theme.output)
         out.parent.mkdir(parents=True, exist_ok=True)

@@ -192,6 +192,7 @@ OPTIONAL_DEFAULTS = {
     "age": UNKNOWN,
     "birthday": UNKNOWN,
     "github_age": UNKNOWN,
+    "github_years": "0",
     "github_since": UNKNOWN,
     "busiest_date": UNKNOWN,
     "busiest_weekday": UNKNOWN,
@@ -303,6 +304,9 @@ def to_values(cfg: Config, stats: Stats, github_name: str | None = None) -> dict
 
     if stats.github_created:
         values["github_age"] = humanize_age(_coerce_date(stats.github_created))
+        # Just the years. "16 years, 1 month, 9 days" is more precision than a
+        # headline wants, and the months and days are noise at that size.
+        values["github_years"] = values["github_age"].split()[0]
 
     weekdays = stats.weekdays or {}
     if weekdays:

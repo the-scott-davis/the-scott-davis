@@ -543,6 +543,66 @@ canvas. The header above the rule is three separate strings: `headline` at
 `headline_font_size`, and `subhead` and `link` sharing the line below it at the
 body size, subhead left and link right.
 
+### Hero layout
+
+A profile banner is read in roughly the time it takes to scroll past it, so the
+row layout the card uses is the wrong tool: twenty facts at the same size give
+the eye nowhere to land. Give the banner a `hero:` block instead and `fields:`
+is ignored.
+
+```yaml
+banner:
+  theme: oxblood
+  hero:
+    x: 400          # left edge, clear of the profile photo and its ring
+    top: 56         # first baseline
+    right: 1267     # where the phone crop cuts; lines must END before it
+    floor: 290      # lowest baseline; below it the phone's photo covers text
+    lines:
+      - { text: "github.com/{username}", size: 24, style: dim }
+      - { text: "Still writing code.",   size: 66, style: fg,     gap: 26 }
+      - { text: "{commits} commits",     size: 30, style: accent, gap: 26 }
+```
+
+Baselines are **stacked, not written down**: each line advances by its own size
+plus its `gap`, so changing one size does not quietly invalidate every position
+below it. `style` names a theme colour -- `fg`, `dim`, `accent` (an alias for
+`key`), `value`, `heading`, `add`, `del`.
+
+The four geometry values are exclusions rather than taste, and all four come
+from where the profile photo and the crops actually land. Every one of them is
+checked on render, and a line that breaks one is reported with the number it
+broke and, where it can, the size that would have fitted.
+
+**What makes a hero banner work is the line under the number, not the number.**
+`17,849` is inert on its own -- it means nothing to anyone who does not commit
+code. It is the sentence next to it that converts magnitude into a judgement,
+and the honest levers are longevity, consistency, rate, and peer acceptance
+(a *merged* pull request means somebody else reviewed and took the work).
+Resist inventing percentile claims to fill that slot; they cannot be computed
+from anything here, and they read as a tell to exactly the audience worth
+impressing.
+
+### Palette-only themes
+
+A banner needs somewhere to define its colours, but an extra entry under
+`themes:` would otherwise write a third card SVG nobody asked for. `card: false`
+makes a theme palette-only: no card, and `output` is not required.
+
+```yaml
+themes:
+  oxblood:
+    card: false
+    bg: "#12100F"
+    fg: "#F0EAE4"
+    key: "#E2564A"
+```
+
+On colour, the one effect worth designing around is **contrast with the
+surroundings**. LinkedIn's own chrome is white and light grey, so a dark banner
+separates from the feed on that basis alone; saturation and brightness drive
+attention far more reliably than any particular hue does.
+
 ### Wrapping
 
 `wrap_cols` caps a column at that many characters and wraps anything longer onto

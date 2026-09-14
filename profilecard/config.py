@@ -238,6 +238,10 @@ class Theme:
     # from the background up to `key`, so a fork gets a card-coloured grid
     # without configuring one.
     heat: list[str] = field(default_factory=list)
+    # False means "palette only": no card is written for it. A banner needs
+    # somewhere to define its colours, and without this a third entry under
+    # `themes:` would silently produce a third card SVG nobody asked for.
+    card: bool = True
 
     @classmethod
     def parse(cls, name: str, data: dict) -> "Theme":
@@ -245,9 +249,13 @@ class Theme:
         data = _as_dict(data, where)
         fg = str(_require(data, "fg", where))
         dim = str(data.get("dim", fg))
+        is_card = bool(data.get("card", True))
+        if is_card and "output" not in data:
+            raise ConfigError(f"{where}: missing required key 'output' (or set card: false)")
         return cls(
             name=name,
-            output=str(_require(data, "output", where)),
+            output=str(data.get("output", "")),
+            card=is_card,
             portrait=str(data.get("portrait") or ""),
             bg=str(_require(data, "bg", where)),
             fg=fg,
@@ -355,6 +363,91 @@ class CardConfig:
 
 
 
+
+# Which theme colour a hero line is painted in. `accent` is an alias for `key`,
+# because on a banner that colour is not marking up a key/value pair -- it is
+# the one thing meant to catch an eye.
+HERO_STYLES = {
+    "fg": "fg", "dim": "dim", "key": "key", "accent": "key",
+    "value": "value", "heading": "heading", "add": "add", "del": "delete",
+}
+
+
+@dataclass
+class HeroLine:
+    """One free-standing line of a hero banner."""
+
+    text: str
+    size: int
+    style: str = "fg"
+    gap: int = 0  # extra space above this line, on top of its own height
+
+    @classmethod
+    def parse(cls, data: Any, index: int) -> "HeroLine":
+        where = f"banner.hero.lines[{index}]"
+        data = _as_dict(data, where)
+        unknown = set(data) - {"text", "size", "style", "gap"}
+        if unknown:
+            raise ConfigError(f"{where}: unknown key(s) {sorted(unknown)}")
+        style = str(data.get("style", "fg"))
+        if style not in HERO_STYLES:
+            raise ConfigError(
+                f"{where}.style: expected one of {sorted(HERO_STYLES)}, got {style!r}"
+            )
+        return cls(
+            text=str(_require(data, "text", where)),
+            size=int(_require(data, "size", where)),
+            style=style,
+            gap=int(data.get("gap", 0)),
+        )
+
+
+@dataclass
+class HeroConfig:
+    """A hero banner: a few free-placed lines instead of a table of rows.
+
+    Rows were the problem the hero layout exists to solve.  A profile banner is
+    read in about the time it takes to scroll past, so it needs one thing large
+    enough to register and a short line that says why it matters -- not twenty
+    facts at the same size.
+
+    The four geometry values are all exclusions rather than aesthetics, and all
+    four come from where the profile photo and the crops actually land:
+
+      x      left edge, clear of the photo AND its white ring (which overruns
+             the photo itself by about 8px)
+      right  where the phone crop cuts; lines must END before it, not just start
+             after ``x``
+      top    first baseline
+      floor  lowest baseline; below this the phone's photo covers the text
+    """
+
+    lines: list[HeroLine] = field(default_factory=list)
+    x: int = 400
+    top: int = 56
+    right: int = 1267
+    floor: int = 290
+
+    @classmethod
+    def parse(cls, data: Any) -> "HeroConfig | None":
+        if not data:
+            return None
+        data = _as_dict(data, "banner.hero")
+        unknown = set(data) - {"lines", "x", "top", "right", "floor"}
+        if unknown:
+            raise ConfigError(f"banner.hero: unknown key(s) {sorted(unknown)}")
+        raw = data.get("lines") or []
+        if not isinstance(raw, list) or not raw:
+            raise ConfigError("banner.hero.lines: expected a non-empty list")
+        return cls(
+            lines=[HeroLine.parse(item, i) for i, item in enumerate(raw)],
+            x=int(data.get("x", cls.x)),
+            top=int(data.get("top", cls.top)),
+            right=int(data.get("right", cls.right)),
+            floor=int(data.get("floor", cls.floor)),
+        )
+
+
 @dataclass
 class BannerConfig:
     """A fixed-size social banner -- a LinkedIn cover -- built from the same stats.
@@ -409,6 +502,8 @@ class BannerConfig:
     # lower than its left column can afford, because the photo's top edge does
     # not move when the block shrinks. Negative lifts it.
     offset_y: int = 0
+    # When present, the banner is a hero composition and `fields` is ignored.
+    hero: "HeroConfig | None" = None
     fields: list[Field] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -463,7 +558,7 @@ class BannerConfig:
             "headline", "subhead", "link", "headline_font_size", "headline_line_height",
             "headline_char_width", "headline_gap", "font_size", "line_height",
             "char_width", "columns", "wrap_cols", "column_gutter", "min_dots", "offset_x",
-            "offset_y", "enabled", "fields",
+            "offset_y", "enabled", "hero", "fields",
         }
         unknown = set(data) - known
         if unknown:
@@ -497,6 +592,7 @@ class BannerConfig:
             min_dots=int(data.get("min_dots", cls.min_dots)),
             offset_x=int(data.get("offset_x", cls.offset_x)),
             offset_y=int(data.get("offset_y", cls.offset_y)),
+            hero=HeroConfig.parse(data.get("hero")),
             fields=[f for f in fields if f.enabled],
         )
 

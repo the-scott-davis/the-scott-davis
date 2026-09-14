@@ -225,75 +225,52 @@ card:
 #  Regenerate:  make banner
 # ──────────────────────────────────────────────────────────────────────────────
 banner:
-  # The format is settled, so this is on: every fetch now writes
+  # The format is settled, so this is on: every fetch writes
   # dist/linkedin_banner.png, which is the file to upload. Set it to false
   # while reworking the layout and nothing renders or gets committed.
   enabled: true
-
   output: dist/linkedin_banner.svg
   png: dist/linkedin_banner.png
-  theme: dark            # a banner is one baked image; it cannot follow the reader
-  safe_width: 950
-  # Both stack rows are lists too long for one line. Wrapping them onto
-  # continuation rows spends height, which this canvas has, instead of width,
-  # which it does not -- and that is what keeps the type at 20px. Unwrapped,
-  # the same content only fits at 15px.
-  wrap_cols: 42
-  font_size: 20
-  line_height: 27
-  # One dot rather than the card's two. It buys two characters across the two
-  # columns, which is the difference between clearing the mobile crop and
-  # sitting hard against it.
-  min_dots: 1
-  headline_font_size: 26
-  headline_gap: 18
+  theme: oxblood
 
-  # <heading> is the theme's brightest text; plain fg read as another body row.
-  # Not in `link:`, which right-aligns to the block edge and would leave a wide
-  # empty channel across the header with nothing on the left of it.
-  headline: "<heading>github.com/{username}</heading>"
-  subhead: ""
-  link: ""
+  # A hero composition rather than the row layout the card uses. A profile
+  # banner is read in about the time it takes to scroll past it, so it needs
+  # one thing big enough to register and a line saying why it matters -- not
+  # twenty facts at the same size. (The row layout is still supported: delete
+  # `hero:` and give the banner `fields:` instead. See docs/CUSTOMIZING.md.)
+  #
+  # The four numbers are exclusions, not taste. The profile photo and its white
+  # ring reach x=365 on desktop; the phone crop cuts at x=1267 and puts the
+  # photo over anything below y=299. Text therefore lives in the box between.
+  hero:
+    x: 400
+    top: 56
+    right: 1267
+    floor: 290
+    lines:
+      - text: "github.com/{username}"
+        size: 24
+        style: dim
 
-  fields:
-    # The left column is deliberately the short one. Its rows would otherwise
-    # run down into the corner the profile photo covers, so it ends at the
-    # fifth -- around y=230, well above the photo's top edge at y=244.
-    - heading: Rhythm
-    - label: Active days
-      value: "{active_days} of {calendar_days} <dim>({active_pct}%)</dim>"
-    - label: Streak
-      value: "{current_streak} <dim>·</dim> best {longest_streak}"
-    - label: Peak hours
-      value: "{busiest_window}"
-    - label: Busiest day
-      value: "{busiest_weekday}s"
+      # The claim. It is the only sentence here in a human voice, and it is
+      # what makes the numbers under it mean something: a leader who still
+      # ships is the signal, and the figures are the evidence for it.
+      - text: "Still writing code."
+        size: 66
+        style: fg
+        gap: 26
 
-    - column_break: true
+      # Merged pull requests rather than raw commits alone: merged means other
+      # engineers reviewed the work and took it.
+      - text: "{commits} commits  ·  {prs_merged} pull requests merged"
+        size: 30
+        style: accent
+        gap: 26
 
-    # The right column is clear of the photo at any height, so the long
-    # sections go here. Stack leads: it is what the audience here reads for,
-    # and the top of a column is the part that survives every crop.
-    - heading: Stack
-    # Names, not percentages. A language percentage is a share of BYTES in
-    # repositories this account is attached to -- not a claim about skill, and
-    # not comparable to the technology figures, which count repositories. Two
-    # unrelated denominators side by side read as one scale.
-    - label: Primary
-      value: "{languages_5}"
-    # Everything detected that is not already named above, so nothing repeats.
-    - label: Other
-      value: "{tech_other_5}"
-
-    - heading: Commits
-    - label: All time
-      value: "{commits}"
-    - label: "{year}"
-      value: "{commits_ytd} <dim>so far</dim>"
-    - label: "{prev_year}"
-      value: "{commits_prev_year}"
-    - label: Per day
-      value: "{per_day}"
+      - text: "{github_years} years on GitHub  ·  active {active_days} of the last {calendar_days} days"
+        size: 25
+        style: dim
+        gap: 17
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  One SVG is written per theme.  Add a third if you want one; the README's
@@ -318,6 +295,18 @@ themes:
     # reads as one flat block. Swap in the blues from `value` if you prefer --
     # blue holds its saturation better down here.
     heat: ["#21262d", "#4d2a08", "#8a4a0d", "#cc7a1f", "#ffa657"]
+
+  # Palette only: `card: false` keeps it from writing a third card SVG. The
+  # banner borrows it. Near-black against LinkedIn's white feed is what makes
+  # it separate at all -- contrast with the surroundings does far more work
+  # here than any particular hue.
+  oxblood:
+    card: false
+    bg: "#12100F"
+    fg: "#F0EAE4"
+    dim: "#8A817A"
+    key: "#E2564A"     # the one colour on the banner meant to catch an eye
+    heading: "#F0EAE4"
 
   light:
     output: dist/light_mode.svg

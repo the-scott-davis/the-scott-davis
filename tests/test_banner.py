@@ -8,8 +8,22 @@ under the profile photo.  These are the checks that catch those.
 
 import pytest
 
-from profilecard.banner import AVATAR_BOX, layout, render
-from profilecard.config import BannerConfig, ConfigError, Field, Theme
+from profilecard.banner import (
+    AVATAR_BOX,
+    AVATAR_RING_X,
+    MOBILE_PHOTO_Y,
+    layout,
+    layout_hero,
+    render,
+)
+from profilecard.config import (
+    BannerConfig,
+    ConfigError,
+    Field,
+    HeroConfig,
+    HeroLine,
+    Theme,
+)
 
 VALUES = {"username": "octocat", "name": "Mona", "commits": "1,234", "prs": "12"}
 
@@ -148,3 +162,69 @@ class TestConfig:
         with pytest.raises(ConfigError) as exc:
             BannerConfig.parse({"fields": [{"value": "orphan"}]})
         assert "banner.fields[0]" in str(exc.value)
+
+
+class TestHero:
+    """The hero layout. Its failure modes are all invisible in the SVG: the
+    canvas is the right size either way, and the text is simply gone once
+    LinkedIn has cropped it or dropped a photo on top of it."""
+
+    def hero(self, **kw):
+        lines = kw.pop("lines", [HeroLine(text="Still writing code.", size=66)])
+        return HeroConfig(lines=lines, **kw)
+
+    def test_baselines_stack_by_size_and_gap(self):
+        h = self.hero(top=50, lines=[
+            HeroLine(text="a", size=20),
+            HeroLine(text="b", size=30, gap=10),
+        ])
+        assert [y for y, *_ in layout_hero(h, VALUES)["placed"]] == [70, 110]
+
+    def test_a_line_overrunning_the_phone_crop_warns(self):
+        h = self.hero(x=400, right=600, lines=[HeroLine(text="x" * 80, size=30)])
+        warnings = layout_hero(h, VALUES)["warnings"]
+        assert any("past the phone crop" in w for w in warnings)
+
+    def test_the_warning_says_what_size_would_fit(self):
+        h = self.hero(x=400, right=600, lines=[HeroLine(text="x" * 80, size=30)])
+        warning = next(w for w in layout_hero(h, VALUES)["warnings"] if "crop" in w)
+        assert "px" in warning.split("drop it to")[1]
+
+    def test_text_inside_the_photo_ring_warns(self):
+        h = self.hero(x=AVATAR_RING_X - 1)
+        assert any("ring" in w for w in layout_hero(h, VALUES)["warnings"])
+
+    def test_text_below_the_floor_warns(self):
+        h = self.hero(top=500, floor=290)
+        assert any("floor" in w for w in layout_hero(h, VALUES)["warnings"])
+        assert any(str(MOBILE_PHOTO_Y) in w for w in layout_hero(h, VALUES)["warnings"])
+
+    def test_a_clean_hero_warns_about_nothing(self):
+        assert layout_hero(self.hero(), VALUES)["warnings"] == []
+
+    def test_hero_renders_without_columns(self):
+        b = BannerConfig(hero=self.hero(), fields=[])
+        svg, _ = render(b, THEME, VALUES)
+        assert "Still writing code." in svg
+        assert 'width="1584px" height="396px"' in svg
+
+    def test_an_unknown_style_is_refused(self):
+        with pytest.raises(ConfigError) as exc:
+            HeroLine.parse({"text": "x", "size": 20, "style": "chartreuse"}, 0)
+        assert "chartreuse" in str(exc.value)
+
+    def test_hero_needs_lines(self):
+        with pytest.raises(ConfigError) as exc:
+            HeroConfig.parse({"x": 400})
+        assert "non-empty" in str(exc.value)
+
+
+class TestPaletteOnlyThemes:
+    def test_a_palette_only_theme_needs_no_output(self):
+        t = Theme.parse("oxblood", {"card": False, "bg": "#000", "fg": "#fff"})
+        assert t.card is False and t.output == ""
+
+    def test_a_card_theme_still_requires_one(self):
+        with pytest.raises(ConfigError) as exc:
+            Theme.parse("dark", {"bg": "#000", "fg": "#fff"})
+        assert "output" in str(exc.value)
