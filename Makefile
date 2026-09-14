@@ -45,10 +45,10 @@ preview: ## Render the portrait to a scratch file without writing committed file
 analyze: ## Report whether the source image suits ascii or pixel mode
 	$(PY) -m profilecard.portrait --analyze
 
-build: ## Render the cards from cached stats (no GitHub token needed)
+build: ## Render the cards and banner from cached stats (no GitHub token needed)
 	$(PY) -m profilecard --offline
 
-fetch: ## Fetch fresh stats from GitHub and render (needs GITHUB_TOKEN)
+fetch: ## Fetch fresh stats and render the cards and banner (needs GITHUB_TOKEN)
 	$(PY) -m profilecard
 
 check: ## Validate config.yml

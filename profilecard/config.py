@@ -159,8 +159,8 @@ class Field:
         return self.label.split(".") if self.label else []
 
     @classmethod
-    def parse(cls, data: Any, index: int) -> "Field":
-        where = f"card.fields[{index}]"
+    def parse(cls, data: Any, index: int, prefix: str = "card") -> "Field":
+        where = f"{prefix}.fields[{index}]"
         if data in ("---", "separator"):  # shorthand for a blank spacer line
             return cls(separator=True)
         data = _as_dict(data, where)
@@ -354,6 +354,141 @@ class CardConfig:
         )
 
 
+
+@dataclass
+class BannerConfig:
+    """A fixed-size social banner -- a LinkedIn cover -- built from the same stats.
+
+    The card sizes itself to its content.  This cannot: the canvas is fixed, so
+    the content is measured against it and overflow is an error.  See
+    :mod:`profilecard.banner` for what the defaults are protecting against.
+    """
+
+    output: str = "dist/linkedin_banner.svg"
+    png: str = "dist/linkedin_banner.png"
+    # Which entry under `themes:` supplies the palette. A banner is one baked
+    # image, so unlike the README it cannot follow the reader's colour scheme.
+    theme: str = "dark"
+    width: int = 1584
+    height: int = 396
+    # Supersampling for the PNG. LinkedIn downscales the image again, and text
+    # that has been antialiased twice at 1x goes muddy.
+    scale: int = 2
+    # The app crops to roughly the centre 60% of the width. Content wider than
+    # this is reported, not refused -- it is a warning about phones, not a
+    # layout failure.
+    safe_width: int = 950
+    headline: str = ""
+    # A quieter second line under the headline, set at the body size. The
+    # header is where anything that would otherwise sit in the bottom-left
+    # corner has to go, because the profile photo covers that corner.
+    subhead: str = ""
+    link: str = ""
+    headline_font_size: int = 28
+    headline_line_height: int | None = None
+    headline_char_width: float | None = None
+    headline_gap: int = 18
+    # Larger than the card's 16px on purpose: LinkedIn shows the banner at
+    # roughly half these pixel dimensions, so the card's size arrives at 7px.
+    font_size: int = 22
+    line_height: int = 28
+    char_width: float | None = None
+    columns: int = 2
+    column_gutter: int = 4
+    min_dots: int = 2
+    # Nudges the block off centre, to buy clearance from the profile photo in
+    # the bottom-left corner at the cost of symmetry under the mobile crop.
+    offset_x: int = 0
+    fields: list[Field] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.char_width is None:
+            self.char_width = round(self.font_size * 0.6, 2)
+        if self.headline_char_width is None:
+            self.headline_char_width = round(self.headline_font_size * 0.6, 2)
+        if self.headline_line_height is None:
+            self.headline_line_height = round(self.headline_font_size * 1.25)
+
+    def as_card(self) -> "CardConfig":
+        """The banner's fields as a card, so the column machinery can be reused.
+
+        The title is blanked deliberately: the banner sets its headline at a
+        larger size and measures it separately, and a title left in here would
+        silently widen the body columns to match it.
+        """
+        return CardConfig(
+            title="",
+            font_size=self.font_size,
+            line_height=self.line_height,
+            char_width=self.char_width,
+            columns=self.columns,
+            column_gutter=self.column_gutter,
+            min_dots=self.min_dots,
+            show_portrait=False,
+            fields=self.fields,
+        )
+
+    @classmethod
+    def parse(cls, data: Any) -> "BannerConfig | None":
+        if not data:
+            return None
+        data = _as_dict(data, "banner")
+        # Off is the same as absent: nothing is rendered and nothing is written,
+        # so a banner still being designed leaves no artifact in the repository
+        # for the nightly job to publish. The rest of the section is still
+        # parsed and validated first, so a typo in a switched-off banner is
+        # caught now rather than the day it is switched back on.
+        raw_fields = data.get("fields") or []
+        if not isinstance(raw_fields, list):
+            raise ConfigError("banner.fields: expected a list")
+        fields = [Field.parse(item, i, "banner") for i, item in enumerate(raw_fields)]
+        for i, f in enumerate(fields):
+            if f.heatmap:
+                raise ConfigError(
+                    f"banner.fields[{i}]: a heatmap does not fit a fixed canvas "
+                    "-- it is several rows tall and would push the block off it"
+                )
+        known = {
+            "output", "png", "theme", "width", "height", "scale", "safe_width",
+            "headline", "subhead", "link", "headline_font_size", "headline_line_height",
+            "headline_char_width", "headline_gap", "font_size", "line_height",
+            "char_width", "columns", "column_gutter", "min_dots", "offset_x",
+            "enabled", "fields",
+        }
+        unknown = set(data) - known
+        if unknown:
+            raise ConfigError(f"banner: unknown key(s) {sorted(unknown)}")
+        columns = int(data.get("columns", cls.columns))
+        if columns < 1:
+            raise ConfigError(f"banner.columns: expected 1 or more, got {columns}")
+        if not data.get("enabled", True):
+            return None
+        return cls(
+            output=str(data.get("output", cls.output)),
+            png=str(data.get("png", cls.png) or ""),
+            theme=str(data.get("theme", cls.theme)),
+            width=int(data.get("width", cls.width)),
+            height=int(data.get("height", cls.height)),
+            scale=int(data.get("scale", cls.scale)),
+            safe_width=int(data.get("safe_width", cls.safe_width)),
+            headline=str(data.get("headline", cls.headline)),
+            subhead=str(data.get("subhead", cls.subhead)),
+            link=str(data.get("link", cls.link)),
+            headline_font_size=int(data.get("headline_font_size", cls.headline_font_size)),
+            headline_line_height=_opt_int(data.get("headline_line_height")),
+            headline_char_width=_opt_float(data.get("headline_char_width")),
+            headline_gap=int(data.get("headline_gap", cls.headline_gap)),
+            font_size=int(data.get("font_size", cls.font_size)),
+            line_height=int(data.get("line_height", cls.line_height)),
+            char_width=_opt_float(data.get("char_width")),
+            columns=columns,
+            column_gutter=int(data.get("column_gutter", cls.column_gutter)),
+            min_dots=int(data.get("min_dots", cls.min_dots)),
+            offset_x=int(data.get("offset_x", cls.offset_x)),
+            fields=[f for f in fields if f.enabled],
+        )
+
+
 # Two rendering modes, each with its own option set.  `pixel` produces a small
 # colour PNG; `ascii` produces a block of characters.  Pixels carry enough
 # information for a face to be recognisable, which is why they are the default.
@@ -451,7 +586,20 @@ class Config:
     vars: dict[str, Any] = field(default_factory=dict)
     stack: StackConfig = field(default_factory=StackConfig)
     portrait: PortraitConfig | None = None
+    banner: BannerConfig | None = None
     path: Path = DEFAULT_CONFIG_PATH
+
+    def banner_theme(self) -> Theme:
+        """The theme the banner names.  A banner is one image, so it picks one."""
+        if not self.banner:
+            raise ConfigError("banner: no banner section in config.yml")
+        for theme in self.themes:
+            if theme.name == self.banner.theme:
+                return theme
+        known = ", ".join(t.name for t in self.themes)
+        raise ConfigError(
+            f"banner.theme: no theme named {self.banner.theme!r} (defined: {known})"
+        )
 
     @classmethod
     def load(cls, path: str | Path = DEFAULT_CONFIG_PATH) -> "Config":
@@ -476,5 +624,6 @@ class Config:
             vars=_as_dict(raw.get("vars"), "vars"),
             stack=StackConfig.parse(raw.get("stack")),
             portrait=PortraitConfig.parse(raw.get("portrait")),
+            banner=BannerConfig.parse(raw.get("banner")),
             path=path,
         )

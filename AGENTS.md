@@ -43,9 +43,11 @@ self-contained SVG with no linked or embedded image.
 | `profilecard/cache.py` | Per-repo line-count cache, keyed on the branch head SHA |
 | `profilecard/stats.py` | Orchestrates collection; builds the placeholder dict |
 | `profilecard/render.py` | Computes layout and emits the SVG |
+| `profilecard/banner.py` | The LinkedIn cover: same stats, fixed 1584x396 canvas |
 | `profilecard/__main__.py` | CLI entry point (`python -m profilecard`) |
 | `scripts/nightly.sh` | The scheduled rebuild. Reads the token from the keyring at use |
 | `dist/` | Generated. Committed. Never hand-edit |
+| `dist/linkedin_banner.png` | Generated. The file you actually upload -- LinkedIn takes no SVG |
 | `cache/loc.json` | Generated. Committed. Safe to delete; it rebuilds |
 
 ## Rules that are easy to get wrong
@@ -140,6 +142,42 @@ self-contained SVG with no linked or embedded image.
 14. **Unknown placeholders are an error, not a blank.** `{typo}` raises a
    `ConfigError` naming the available keys. Keep it that way: a card that
    silently renders `{discrod}` is worse than one that fails the build.
+
+15. **The banner is the one thing here that cannot resize itself.** The card
+   grows to fit its content; a LinkedIn cover is 1584x396 and that is that, so
+   `banner.py` measures the block and raises when it does not fit. Three
+   numbers in `banner:` are load-bearing and none of them are taste:
+
+   - **LinkedIn crops to roughly the middle 60% of the width on mobile.** That
+     is `safe_width`, and it is why the block is centred rather than set to the
+     full width. Exceeding it is a warning, not an error -- it costs you
+     phones, not the build.
+   - **The profile photo covers the bottom-left corner**, out to about x=357
+     below y=244 (`AVATAR_BOX`). Nothing readable goes there. This is why the
+     *short* section is in the left column and the two long ones are stacked on
+     the right: the left column stops at y≈230, above the photo, and the photo
+     then fills the space it leaves. The asymmetry is the design, not a bug.
+   - **Type is downscaled about 2x on desktop and 2.4x on a phone.** The card's
+     16px arrives at 7px, which is why the banner sets its own larger size.
+     Width is what limits it -- roughly 76 characters into 912px -- so adding a
+     row is cheap and lengthening one is not.
+
+   Every render prints all of this as warnings. Read them; they are the only
+   feedback there is, because an SVG that overflows still looks fine on its own.
+   And note that `make build` writes a banner of zeros, exactly as it writes a
+   card of zeros -- use it for layout, and `make fetch` before you upload.
+
+   `banner.enabled: false` switches the whole thing off -- nothing renders and
+   nothing is written -- while still validating the section, so a format under
+   revision leaves no artifact for `nightly.sh` to `git add dist` and publish.
+
+16. **LinkedIn does not accept SVG.** `banner.py` rasterises with a headless
+   Chromium (Brave, Chrome, Chromium or Edge, whichever is installed) at 2x and
+   resamples down, because the image is downscaled again on arrival and text
+   antialiased twice at 1x goes muddy. No rasteriser is added to
+   `requirements.txt` for this: cairo is a poor trade against four pure wheels,
+   and every developer already has one of those browsers. With none installed
+   the SVG is still written and only the PNG step warns.
 
 ## Docs
 

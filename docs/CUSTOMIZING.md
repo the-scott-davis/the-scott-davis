@@ -487,6 +487,98 @@ number to change.
 
 ---
 
+## The LinkedIn banner
+
+`banner:` builds a 1584x396 cover photo from the same stats, the same
+`{placeholders}`, and the same `<key>`/`<dim>` markup as the card. It is
+written on every render: `dist/linkedin_banner.svg`, and `dist/linkedin_banner.png`
+beside it. **Upload the PNG.** LinkedIn does not accept SVG.
+
+`enabled: false` turns the whole thing off: nothing renders and nothing is
+written, so a cover photo you are still designing leaves no artifact for the
+nightly job to commit to a public repository. The section is still parsed and
+validated while it is off, so it cannot quietly rot.
+
+The one structural difference is that the canvas cannot grow. The card resizes
+itself around whatever you put in it; a cover photo is 1584x396 and content
+that does not fit is a `ConfigError` naming what to shorten.
+
+```yaml
+banner:
+  theme: dark            # which entry under `themes:` supplies the palette
+  safe_width: 950
+  font_size: 20
+  line_height: 27
+  min_dots: 1
+  headline: "<heading>{tech_5}</heading>"
+  subhead: "{language_top} · {language_top_pct}% of recent code"
+  link: "github.com/{username}"
+  fields:
+    - heading: Rhythm
+    - label: Active days
+      value: "{active_days} of {calendar_days}"
+    - column_break: true
+    - heading: Commits
+    - label: All time
+      value: "{commits}"
+```
+
+`fields` works exactly as `card.fields` does -- headings, separators,
+`column_break`, dot leaders, two columns -- with one exception: `heatmap` is
+refused, because the grid is several rows tall and would push the block off the
+canvas. The header above the rule is three separate strings: `headline` at
+`headline_font_size`, and `subhead` and `link` sharing the line below it at the
+body size, subhead left and link right.
+
+### The two things that will bite you
+
+**LinkedIn crops the sides on mobile**, to roughly the middle 60% of the width.
+That is what `safe_width: 950` describes, and it is why the block is centred
+instead of filling the canvas. Go wider and the render warns you how many
+characters come off each edge; it is a warning rather than an error because it
+costs you phones, not the build.
+
+**Your profile photo covers the bottom-left corner**, out to about x=357 below
+y=244. So the left column has to end above it. That is the whole reason the
+example above puts one short section on the left and stacks the two long ones
+on the right -- the left column stops around y=230 and the photo fills the
+space below it. It looks lopsided as a file and correct as a profile. If you
+reorder the sections and the left column gets deeper, you will get a warning
+saying how many characters the photo will eat.
+
+Between them these are also what fixes the type size. The banner is shown at
+roughly half these pixel dimensions on desktop and smaller again on a phone, so
+the card's 16px would arrive at 7px. 20px is about the floor that survives it,
+and *width* is what limits how much you can say: roughly 76 characters fit
+across 912px. Adding a row is cheap. Lengthening one is not.
+
+### Geometry
+
+| Key | Default | What it does |
+|---|---|---|
+| `enabled` | `true` | `false` renders and writes nothing, while still validating the section |
+| `output` / `png` | `dist/linkedin_banner.*` | Where to write. Set `png: ""` to skip rasterising |
+| `theme` | `dark` | Which theme's palette. A banner is one baked image; it cannot follow the reader |
+| `width` / `height` | `1584` / `396` | The canvas. LinkedIn's personal-profile cover size |
+| `safe_width` | `950` | Width the mobile crop leaves. Exceeding it warns |
+| `offset_x` | `0` | Nudges the block off centre, to buy clearance from the photo |
+| `scale` | `2` | Supersampling for the PNG, resampled down afterwards |
+| `font_size` / `line_height` | `22` / `28` | Body text |
+| `char_width` | `0.6 x font_size` | Monospace advance. Change only with the font stack |
+| `headline_font_size` | `28` | The line above the rule |
+| `headline_gap` | `18` | Pixels between the header rule and the first row |
+
+### Rasterising
+
+There is no rasteriser in `requirements.txt`. The PNG is produced by a headless
+Chromium -- Chrome, Chromium, Brave or Edge, whichever is installed -- which
+renders the SVG with the same engine it was designed against, at `scale` times
+the target, resampled down with Pillow. Two rounds of naive antialiasing is
+what turns small monospace text to mush, and LinkedIn performs the second one.
+
+With none of those browsers installed the SVG is still written and only the PNG
+step warns. Convert it yourself, at exactly 1584x396.
+
 ## What you build with
 
 ```yaml
